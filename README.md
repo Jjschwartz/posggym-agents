@@ -1,2 +1,2 @@
 # posggym-agents
-Agents for POSGGym environments
+Collection of agents and agent training code for POSGGym environments.
