@@ -14,6 +14,10 @@ PolicyHiddenState = Dict[str, Any]
 class BasePolicy(abc.ABC):
     """Abstract policy interface."""
 
+    # PolicySpec used to generate policy instance
+    # This is set when policy is made using make function
+    spec = None
+
     def __init__(self,
                  model: M.POSGModel,
                  agent_id: M.AgentID,

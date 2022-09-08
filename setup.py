@@ -5,7 +5,7 @@ try:
     import torch
 except ImportError:
     print(
-        "BA-POSGMCP depends on the pytorch library. For installation "
+        "posggym-agents depends on the pytorch library. For installation "
         "instructions visit https://pytorch.org/"
     )
     sys.exit(1)
@@ -14,7 +14,7 @@ try:
     import ray.rllib
 except ImportError:
     print(
-        "BA-POSGMCP depends on the ray RLlib library. For installation "
+        "posggym-agents depends on the ray RLlib library. For installation "
         "instructions visit https://docs.ray.io/en/latest/rllib/index.html. "
         "Only tested with version 1.12, which is installable via pip with: "
         'pip install "ray[rllib]"==1.12'
