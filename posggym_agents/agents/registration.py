@@ -113,9 +113,7 @@ class PolicyRegistry:
     """Register for policies by ID."""
 
     def __init__(self):
-        self.policy_specs: Dict[
-            str, Union[Dict[str, PolicySpec], PolicySpec]
-        ] = {}
+        self.policy_specs: Dict[str, PolicySpec] = {}
 
     def make(self,
              id: str,
@@ -153,9 +151,13 @@ class PolicyRegistry:
 
     def register(self, id: str, entry_point: PolicyEntryPoint, **kwargs):
         """Register policy in register."""
-        if id in self.policy_specs:
-            logger.warn(f"Overriding policy {id}")
-        self.policy_specs[id] = PolicySpec(id, entry_point, kwargs)
+        self.register_spec(PolicySpec(id, entry_point, kwargs))
+
+    def register_spec(self, policy_spec: PolicySpec):
+        """Register policy spec in register."""
+        if policy_spec.id in self.policy_specs:
+            logger.warn(f"Overriding policy {spec.id}")
+        self.policy_specs[policy_spec.id] = policy_spec
 
 
 # Global registry that all implemented policies are added too
@@ -166,6 +168,11 @@ registry = PolicyRegistry()
 def register(id: str, entry_point: PolicyEntryPoint, **kwargs):
     """Register a policy with posggym-agents."""
     return registry.register(id, entry_point, **kwargs)
+
+
+def register_spec(spec: PolicySpec):
+    """Register a policy spec with posggym-agents."""
+    return registry.register_spec(spec)
 
 
 def make(id: str,

@@ -3,7 +3,7 @@ import copy
 import pickle
 import tempfile
 from datetime import datetime
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Union, Any
 
 import ray
 
@@ -13,15 +13,28 @@ from posggym_agents import pbt
 from posggym_agents.policy import PolicyID, BasePolicy
 
 from posggym_agents.rllib.utils import RllibTrainerMap
-from posggym_agents.rllib.import_export_utils import (
-    TRAINER_CONFIG_FILE, nested_remove
-)
+
+TRAINER_CONFIG_FILE = "trainer_config.pkl"
 
 
 def _export_trainer_config(export_dir: str, config: Dict):
     config_path = os.path.join(export_dir, TRAINER_CONFIG_FILE)
     with open(config_path, "wb") as fout:
         pickle.dump(config, fout)
+
+
+def nested_remove(old: Dict, to_remove: Sequence[Union[Any, Sequence[Any]]]):
+    """Remove items from an existing dict, handling nested sequences."""
+    for keys in to_remove:
+        # specify tuple/list since a str is also a sequence
+        if not isinstance(keys, (tuple, list)):
+            del old[keys]
+            continue
+
+        sub_old = old
+        for k in keys[:-1]:
+            sub_old = sub_old[k]
+        del sub_old[keys[-1]]
 
 
 def get_trainer_export_fn(trainer_map: RllibTrainerMap,

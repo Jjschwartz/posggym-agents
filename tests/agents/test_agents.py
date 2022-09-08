@@ -40,7 +40,7 @@ def test_policy(spec: PolicySpec, env_name_prefix: str):
 
     obs = env.reset()
 
-    if env.observation_first:
+    if not env.observation_first:
         obs = [None] * env.n_agents
 
     test_policy.reset()

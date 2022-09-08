@@ -59,8 +59,8 @@ def get_rl_exp_parser() -> argparse.ArgumentParser:
 
 
 def load_rllib_agent_policy(model: M.POSGModel,
-                            ego_agent: M.AgentID,
-                            gamma: float,
+                            agent_id: M.AgentID,
+                            policy_id: str,
                             **kwargs) -> pa_rllib.PPORllibPolicy:
     """Load rllib agent policy from file for use in experiments.
 
@@ -72,7 +72,6 @@ def load_rllib_agent_policy(model: M.POSGModel,
     ---------------
     'env_name'
     'policy_dir'
-    'policy_id'
 
     Optional kwargs (defaults)
     --------------------------
@@ -91,7 +90,6 @@ def load_rllib_agent_policy(model: M.POSGModel,
     """
     env_name = kwargs.pop("env_name")
     policy_dir = kwargs.pop("policy_dir")
-    policy_id = kwargs.pop("policy_id")
 
     extra_config = {
         "num_gpus": kwargs.get("num_gpus", 0.0),
@@ -121,26 +119,24 @@ def load_rllib_agent_policy(model: M.POSGModel,
         policy_id=policy_id,
         igraph_dir=policy_dir,
         env_is_symmetric=True,
-        agent_id=ego_agent,
+        agent_id=agent_id,
         trainer_args=trainer_args,
         policy_mapping_fn=None,
         extra_config=extra_config
     )
 
     if kwargs.get("flatten_obs", True):
-        obs_space = model.observation_spaces[ego_agent]
+        obs_space = model.observation_spaces[agent_id]
         preprocessor = pa_rllib.get_flatten_preprocessor(obs_space)
     else:
         preprocessor = pa_rllib.identity_preprocessor
 
     policy = pa_rllib.PPORllibPolicy(
         model=model,
-        ego_agent=ego_agent,
-        gamma=gamma,
-        policy=rllib_policy,
+        agent_id=agent_id,
         policy_id=policy_id,
-        preprocessor=preprocessor,
-        **kwargs
+        policy=rllib_policy,
+        preprocessor=preprocessor
     )
     return policy
 

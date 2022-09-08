@@ -8,21 +8,24 @@ import ray
 from ray import rllib
 from ray.rllib.agents.trainer import Trainer
 
-from posggym.model import AgentID
+import posggym.model as M
 
 from posggym_agents import pbt
 from posggym_agents.policy import PolicyID, BasePolicy
 
-from posggym_agents.rllib.trainer import get_remote_trainer, get_trainer
+from posggym_agents.rllib.export_lib import TRAINER_CONFIG_FILE
+from posggym_agents.rllib.policy import RllibPolicy, PPORllibPolicy
+from posggym_agents.rllib.trainer import (
+    get_remote_trainer, get_trainer, noop_logger_creator, CustomPPOTrainer
+)
 from posggym_agents.rllib.utils import (
     RllibTrainerMap,
     RllibPolicyMap,
+    ObsPreprocessor,
+    identity_preprocessor,
     get_igraph_policy_mapping_fn,
-    default_asymmetric_policy_mapping_fn,
     default_symmetric_policy_mapping_fn,
-)
-from posggym_agents.rllib.import_export_utils import (
-    TRAINER_CONFIG_FILE, nested_update
+    default_asymmetric_policy_mapping_fn,
 )
 
 
@@ -45,6 +48,16 @@ def _import_trainer_config(import_dir: str) -> Dict:
     config_path = osp.join(import_dir, TRAINER_CONFIG_FILE)
     with open(config_path, "rb") as fin:
         return pickle.load(fin)
+
+
+def nested_update(old: Dict, new: Dict):
+    """Update existing dict inplace with a new dict, handling nested dicts."""
+    for k, v in new.items():
+        if k not in old or not isinstance(v, dict):
+            old[k] = v
+        else:
+            # assume old[k] is also a dict
+            nested_update(old[k], v)
 
 
 def import_trainer(trainer_dir: str,
@@ -130,9 +143,9 @@ def get_trainer_weights_import_fn(trainer_args: TrainerImportArgs,
     3. Adds trainer to the trainer map
     4. Returns the weights of the policy with given ID
     """
-    trainer_map: Dict[AgentID, Dict[PolicyID, Trainer]] = {}
+    trainer_map: Dict[M.AgentID, Dict[PolicyID, Trainer]] = {}
 
-    def import_fn(agent_id: AgentID,
+    def import_fn(agent_id: M.AgentID,
                   policy_id: PolicyID,
                   import_dir: str) -> BasePolicy:
         trainer = import_trainer(
@@ -164,7 +177,7 @@ def get_trainer_weights_import_fn(trainer_args: TrainerImportArgs,
 def import_policy_trainer(policy_id: PolicyID,
                           igraph_dir: str,
                           env_is_symmetric: bool,
-                          agent_id: Optional[AgentID],
+                          agent_id: Optional[M.AgentID],
                           trainer_args: TrainerImportArgs,
                           policy_mapping_fn: Optional[Callable] = None,
                           extra_config: Optional[Dict] = None,
@@ -196,15 +209,15 @@ def import_policy_trainer(policy_id: PolicyID,
     return trainer
 
 
-def import_policy(policy_id: PolicyID,
-                  igraph_dir: str,
-                  env_is_symmetric: bool,
-                  agent_id: Optional[AgentID],
-                  trainer_args: TrainerImportArgs,
-                  policy_mapping_fn: Optional[Callable] = None,
-                  extra_config: Optional[Dict] = None
-                  ) -> rllib.policy.policy.Policy:
-    """Import trainer for given policy."""
+def _import_base_rllib_policy(policy_id: PolicyID,
+                              igraph_dir: str,
+                              env_is_symmetric: bool,
+                              agent_id: Optional[M.AgentID],
+                              trainer_args: TrainerImportArgs,
+                              policy_mapping_fn: Optional[Callable] = None,
+                              extra_config: Optional[Dict] = None
+                              ) -> rllib.policy.policy.Policy:
+    """Import underlying rllib.Policy."""
     trainer = import_policy_trainer(
         policy_id=policy_id,
         igraph_dir=igraph_dir,
@@ -227,7 +240,171 @@ def import_policy(policy_id: PolicyID,
     return policy
 
 
-def _dummy_trainer_import_fn(agent_id: AgentID,
+def import_policy_from_igraph_dir(model: M.POSGModel,
+                                  agent_id: M.AgentID,
+                                  policy_id: PolicyID,
+                                  igraph_dir: str,
+                                  policy_cls: Optional = None,
+                                  trainer_cls: Optional = None,
+                                  preprocessor: Optional[
+                                      ObsPreprocessor
+                                  ] = None,
+                                  **kwargs) -> RllibPolicy:
+    """Import igraph trained Rllib Policy from a file.
+
+    This imports the underlying rllib.Policy object and then handles wrapping
+    it within a compatible policy so it's compatible with posggym-agents Policy
+    API.
+
+    Note, this policy imports the function assuming the policy will be used
+    as is without any further training.
+
+    For kwargs and defaults see 'default kwargs' variable in function
+    implementation.
+
+    'igraph_dir' is the parent directory of the policy where the 'igraph.json'
+    and 'igraph_agents.json' files are saved.
+
+    """
+    default_kwargs = {
+        "num_gpus": 0.0,
+        "num_workers": 0,
+        "num_envs_per_worker": 1,
+        "log_level": "DEBUG",
+        # disables logging of CPU and GPU usage
+        "log_sys_usage": False,
+        # Disable exploration
+        "explore": False,
+        "exploration_config": {
+            "type": "StochasticSampling",
+            "random_timesteps": 0
+        },
+        # override this in case training env name was different to the
+        # eval env
+        "env_config": {
+            "env_name": model.spec.id
+        }
+
+    }
+
+    extra_config = default_kwargs
+    extra_config.update(kwargs)
+
+    if trainer_cls is None:
+        trainer_cls = CustomPPOTrainer
+
+    if policy_cls is None:
+        policy_cls = PPORllibPolicy
+
+    trainer_args = TrainerImportArgs(
+        trainer_class=trainer_cls,
+        trainer_remote=False,
+        logger_creator=noop_logger_creator
+    )
+
+    rllib_policy = _import_base_rllib_policy(
+        policy_id=policy_id,
+        igraph_dir=igraph_dir,
+        env_is_symmetric=model.is_symmetric,
+        agent_id=agent_id,
+        trainer_args=trainer_args,
+        policy_mapping_fn=None,
+        extra_config=extra_config
+    )
+
+    if preprocessor is None:
+        preprocessor = identity_preprocessor
+
+    return policy_cls(
+        model=model,
+        agent_id=agent_id,
+        policy_id=policy_id,
+        policy=rllib_policy,
+        preprocessor=preprocessor
+    )
+
+
+def import_policy_from_dir(model: M.POSGModel,
+                           agent_id: M.AgentID,
+                           policy_id: PolicyID,
+                           policy_dir: str,
+                           policy_cls: Optional = None,
+                           trainer_cls: Optional = None,
+                           preprocessor: Optional[
+                               ObsPreprocessor
+                           ] = None,
+                           **kwargs) -> RllibPolicy:
+    """Import Rllib Policy from a directory containing saved checkpoint.
+
+    This imports the underlying rllib.Policy object and then handles wrapping
+    it within a compatible policy so it's compatible with posggym-agents Policy
+    API.
+
+    Note, this policy imports the function assuming the policy will be used
+    as is without any further training.
+
+    For kwargs and defaults see 'default kwargs' variable in function
+    implementation.
+
+    """
+    default_kwargs = {
+        "num_gpus": 0.0,
+        "num_workers": 0,
+        "num_envs_per_worker": 1,
+        "log_level": "DEBUG",
+        # disables logging of CPU and GPU usage
+        "log_sys_usage": False,
+        # Disable exploration
+        "explore": False,
+        "exploration_config": {
+            "type": "StochasticSampling",
+            "random_timesteps": 0
+        },
+        # override this in case training env name was different to the
+        # eval env
+        "env_config": {
+            "env_name": model.spec.id
+        },
+        "multiagent": {
+            "policy_mapping_fn": None
+        }
+    }
+
+    extra_config = default_kwargs
+    extra_config.update(kwargs)
+
+    if trainer_cls is None:
+        trainer_cls = CustomPPOTrainer
+
+    if policy_cls is None:
+        policy_cls = PPORllibPolicy
+
+    if preprocessor is None:
+        preprocessor = identity_preprocessor
+
+    trainer_args = TrainerImportArgs(
+        trainer_class=trainer_cls,
+        trainer_remote=False,
+        logger_creator=noop_logger_creator
+    )
+
+    trainer = import_trainer(policy_dir, trainer_args, extra_config)
+    # be default this is the name of the dir
+    trainer_policy_id = osp.basename(osp.normpath(policy_dir))
+    # release trainer resources to avoid accumulation of background processes
+    rllib_policy = trainer.get_policy(trainer_policy_id)
+    trainer.stop()
+
+    return policy_cls(
+        model=model,
+        agent_id=agent_id,
+        policy_id=policy_id,
+        policy=rllib_policy,
+        preprocessor=preprocessor
+    )
+
+
+def _dummy_trainer_import_fn(agent_id: M.AgentID,
                              policy_id: PolicyID,
                              import_dir: str) -> BasePolicy:
     return {}
@@ -331,7 +508,7 @@ def import_igraph_policies(igraph_dir: str,
     for agent_id in agent_ids:
         policy_map[agent_id] = {}
         for policy_id in igraph.get_agent_policy_ids(agent_id):
-            policy_map[agent_id][policy_id] = import_policy(
+            policy_map[agent_id][policy_id] = _import_base_rllib_policy(
                 policy_id=policy_id,
                 igraph_dir=igraph_dir,
                 env_is_symmetric=env_is_symmetric,

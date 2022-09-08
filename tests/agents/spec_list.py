@@ -12,7 +12,7 @@ def should_skip_policy_spec_for_tests(spec):
     if (
         spec.id.startswith("fixed-dist-random")   # requires dist arg
     ):
-        logger.warn(f"Skipping tests for policy {id}")
+        logger.warn(f"Skipping tests for policy {spec.id}")
         return True
     return False
 

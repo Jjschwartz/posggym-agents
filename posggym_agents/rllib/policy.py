@@ -32,8 +32,7 @@ class RllibPolicy(Pi.BasePolicy):
                  agent_id: int,
                  policy_id: str,
                  policy: rllib.policy.policy.Policy,
-                 preprocessor: Optional[utils.ObsPreprocessor] = None,
-                 **kwargs):
+                 preprocessor: Optional[utils.ObsPreprocessor] = None):
         super().__init__(model, agent_id, policy_id)
 
         self._policy = policy
@@ -47,11 +46,8 @@ class RllibPolicy(Pi.BasePolicy):
         self._last_pi_info: Dict[str, Any] = {}
 
     def step(self, obs: M.Observation) -> M.Action:
-        self._log_info1(f"Step obs={obs}")
-        start_time = time.time()
         self.update(self._last_action, obs)
         self._last_action = self.get_action()
-        self._log_info1(f"Step time = {time.time() - start_time:.4f}s")
         return self._last_action
 
     def get_action(self) -> M.Action:
@@ -102,7 +98,6 @@ class RllibPolicy(Pi.BasePolicy):
 
     def reset(self) -> None:
         super().reset()
-        self._log_info1("Reset")
         self._last_obs = None
         self._last_hidden_state = self._get_initial_hidden_state()
         self._last_pi_info = {}
