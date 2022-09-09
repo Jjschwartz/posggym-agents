@@ -7,6 +7,7 @@ from posggym_agents.agents.registration import registry   # noqa
 from posggym_agents.agents.random import RandomPolicy
 from posggym_agents.agents.random import FixedDistributionPolicy
 from posggym_agents.agents import driving7x7roundabout_n2_v0
+from posggym_agents.agents import driving14x14roundabout_n2_v0
 
 
 # Generic Random Policies
@@ -23,8 +24,12 @@ register(
 )
 
 
-# Driving7x7RoundAbout-v0 Policies
-# --------------------------------
+# Driving Policies
+# ----------------
 
 for policy_spec in driving7x7roundabout_n2_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+
+for policy_spec in driving14x14roundabout_n2_v0.POLICY_SPECS.values():
     register_spec(policy_spec)
