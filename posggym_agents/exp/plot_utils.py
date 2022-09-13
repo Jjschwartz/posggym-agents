@@ -277,7 +277,8 @@ def plot_pairwise_heatmap(ax,
     values = values[-1::-1]
 
     if vrange is None:
-        vrange = (-0.2, 1.0)
+        vrange = (np.min(values), np.max(values))
+
     if valfmt is None:
         valfmt = "{x:.2f}"
 
