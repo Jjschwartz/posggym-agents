@@ -1,6 +1,5 @@
 """Functions and data structures for running experiments."""
 import os
-import copy
 import json
 import time
 import random
@@ -12,8 +11,7 @@ from pprint import pformat
 import multiprocessing as mp
 from datetime import datetime
 from typing import (
-    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Set, Tuple,
-
+    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Tuple
 )
 
 import ray
@@ -22,7 +20,7 @@ import numpy as np
 import posggym
 from posggym import wrappers
 
-from posggym_agents.policy import BasePolicy
+from posggym_agents.agents import make
 from posggym_agents.config import BASE_RESULTS_DIR
 
 from posggym_agents.exp import runner
@@ -46,46 +44,18 @@ def _init_lock(lck):
     LOCK = lck
 
 
-class PolicyParams(NamedTuple):
-    """Params for a policy in a single experiment run.
-
-    `init` should be a function which takes arguments
-    [model: posggym.POSGModel, agent_id: M.AgentID, kwargs]
-    and return a policy. The experiment logger will be added to the kwargs to
-    handle logging to the correct log file.
-
-    `info` is an optional dictionary whose contents will be saved to the
-    results file. It can be used to add additional information alongside the
-    policy, such as additional identifying info like the env trained on,
-    nesting level, population ID, etc.
-    """
-    name: str
-    kwargs: Dict[str, Any]
-    init: Callable[..., BasePolicy]
-    info: Optional[Dict[str, Any]] = None
-
-
 class ExpParams(NamedTuple):
     """Params for a single experiment run."""
     exp_id: int
     env_name: str
-    policy_params_list: List[PolicyParams]
-    run_config: runner.RunConfig
-    tracker_fn: Optional[
-        Callable[
-            [List[BasePolicy], Dict[str, Any]],
-            Sequence[stats_lib.Tracker]
-        ]
-    ] = None
-    tracker_kwargs: Optional[Dict[str, Any]] = None
-    renderer_fn: Optional[
-        Callable[[Dict[str, Any]], Sequence[render_lib.Renderer]]
-    ] = None
-    renderer_kwargs: Optional[Dict[str, Any]] = None
+    policy_ids: List[str]
+    seed: int
+    num_episodes: int
+    time_limit: Optional[int] = None
+    tracker_fn: Optional[Callable[[], Sequence[stats_lib.Tracker]]] = None
+    renderer_fn: Optional[Callable[[], Sequence[render_lib.Renderer]]] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
-    setup_fn: Optional[Callable] = None
-    cleanup_fn: Optional[Callable] = None
     record_env: bool = False
     # If None then uses the default cubic frequency
     record_env_freq: Optional[int] = None
@@ -95,6 +65,14 @@ def get_exp_parser() -> argparse.ArgumentParser:
     """Get command line argument parser with default experiment args."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--num_episodes", type=int, default=1000,
+        help="Number of episodes per experiment."
+    )
+    parser.add_argument(
+        "--time_limit", type=int, default=None,
+        help="Experiment time limit, in seconds."
     )
     parser.add_argument(
         "--n_procs", type=int, default=1,
@@ -108,8 +86,9 @@ def get_exp_parser() -> argparse.ArgumentParser:
         "--root_save_dir", type=str, default=None,
         help=(
             "Optional directory to save results in. If supplied then it must "
-            "be an existing directory. If None uses default "
-            "~/baposgmcp_results/<env_name>/results/ dir as root results dir."
+            "be an existing directory. If None the default "
+            "~/posggym_agents_results/<env_name>/results/ dir is used root "
+            "results dir."
         )
     )
     return parser
@@ -122,7 +101,7 @@ def make_exp_result_dir(exp_name: str,
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
         root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name, "results")
-    pathlib.Path(root_save_dir).mkdir(exist_ok=True)
+    pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(
         prefix=f"{exp_name}_{time_str}", dir=root_save_dir
     )
@@ -135,19 +114,8 @@ def _log_exp_start(params: ExpParams,
     LOCK.acquire()
     try:
         logger.info(LINE_BREAK)
-        logger.info(f"Running exp num {params.exp_id} with:")
-        logger.info(f"Env = {params.env_name}")
-
-        for i, pi_params in enumerate(params.policy_params_list):
-            logger.info(f"Agent = {i} Policy class = {pi_params.name}")
-            logger.info("Policy kwargs:")
-            logger.info(pformat(pi_params.kwargs))
-            if pi_params.info:
-                logger.info("Policy info:")
-                logger.info(pformat(pi_params.info))
-
-        logger.info("Run Config:")
-        logger.info(pformat(params.run_config))
+        logger.info("Running with:")
+        logger.info(pformat(params))
         logger.info(f"Result dir = {result_dir}")
         logger.info(LINE_BREAK)
     finally:
@@ -204,93 +172,27 @@ def get_exp_run_logger(exp_id: int,
     return logger
 
 
-def _get_param_statistics(params: ExpParams
-                          ) -> stats_lib.AgentStatisticsMap:
-    num_agents = len(params.policy_params_list)
-
-    def _add_dict(stat_dict, param_dict):
-        for k, v in param_dict.items():
-            if v is None:
-                # Need to do this so Pandas imports 'None' instead of NaN
-                v = 'None'
-            stat_dict[k] = v
-
+def _get_exp_statistics(params: ExpParams) -> stats_lib.AgentStatisticsMap:
     stats = {}
-    policy_headers: Set[str] = set()
-    for i in range(num_agents):
+    for i in range(len(params.policy_ids)):
         stats[i] = {
             "exp_id": params.exp_id,
             "agent_id": i,
             "env_name": params.env_name,
+            "policy_id": params.policy_ids[i],
+            "exp_seed": params.seed,
+            "num_episodes": params.num_episodes,
+            "time_limit": params.time_limit if params.time_limit else "None"
         }
-        # pylint: disable=[protected-access]
-        _add_dict(stats[i], params.run_config._asdict())
-
-        pi_params = params.policy_params_list[i]
-        stats[i]["policy_name"] = pi_params.name
-        _add_dict(stats[i], pi_params.kwargs)
-        policy_headers.update(pi_params.kwargs)
-
-        if pi_params.info:
-            _add_dict(stats[i], pi_params.info)
-            policy_headers.update(pi_params.info)
-
-    for i in range(num_agents):
-        for header in policy_headers:
-            if header not in stats[i]:
-                stats[i][header] = 'None'
-
     return stats
-
-
-def _get_exp_trackers(params: ExpParams,
-                      policies: List[BasePolicy]
-                      ) -> Sequence[stats_lib.Tracker]:
-    if params.tracker_fn:
-        tracker_kwargs = params.tracker_kwargs if params.tracker_kwargs else {}
-        trackers = params.tracker_fn(policies, tracker_kwargs)
-    else:
-        trackers = stats_lib.get_default_trackers(policies)
-    return trackers
-
-
-def _get_exp_renderers(params: ExpParams) -> Sequence[render_lib.Renderer]:
-    if params.renderer_fn:
-        renderer_kwargs = {}
-        if params.renderer_kwargs:
-            renderer_kwargs = params.renderer_kwargs
-        renderers = params.renderer_fn(renderer_kwargs)
-    else:
-        renderers = []
-    return renderers
 
 
 def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
     return lambda t: t % freq == 0
 
 
-def run_single_experiment(args: Tuple[ExpParams, str]):
-    """Run a single experiment and write results to a file."""
-    params, result_dir = args
-    exp_start_time = time.time()
-
-    if params.setup_fn is not None:
-        params.setup_fn(params)
-
-    exp_logger = get_exp_run_logger(
-        params.exp_id,
-        result_dir,
-        params.stream_log_level,
-        params.file_log_level
-    )
-    _log_exp_start(params, result_dir, exp_logger)
-
-    seed = params.run_config.seed
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-
-    env = posggym.make(params.env_name, **{"seed": params.run_config.seed})
+def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
+    env = posggym.make(params.env_name, **{"seed": params.seed})
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:
@@ -300,27 +202,56 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         else:
             episode_trigger = None
         env = wrappers.RecordVideo(env, video_folder, episode_trigger)
+    return env
 
-    policies: List[BasePolicy] = []
-    for i, pi_params in enumerate(params.policy_params_list):
-        kwargs = copy.copy(pi_params.kwargs)
-        kwargs["logger"] = exp_logger
-        pi = pi_params.init(env.model, i, **pi_params.kwargs)
+
+def run_single_experiment(args: Tuple[ExpParams, str]):
+    """Run a single experiment and write results to a file."""
+    params, result_dir = args
+    exp_start_time = time.time()
+
+    exp_logger = get_exp_run_logger(
+        params.exp_id,
+        result_dir,
+        params.stream_log_level,
+        params.file_log_level
+    )
+    _log_exp_start(params, result_dir, exp_logger)
+
+    seed = params.seed
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    env = _make_env(params, result_dir)
+    assert len(params.policy_ids) == env.n_agents, (
+        f"Experiment env '{env}' has {env.n_agents} agents, but "
+        f"{len(params.policy_ids)} supplied."
+    )
+
+    policies = []
+    for i, policy_id in enumerate(params.policy_ids):
+        pi = make(policy_id, env.model, i)
         policies.append(pi)
 
-    trackers = _get_exp_trackers(params, policies)
-    renderers = _get_exp_renderers(params)
+    if params.tracker_fn:
+        trackers = params.tracker_fn()
+    else:
+        trackers = stats_lib.get_default_trackers()
+
+    renderers = params.renderer_fn() if params.renderer_fn else []
     writer = writer_lib.ExperimentWriter(
-        params.exp_id, result_dir, _get_param_statistics(params)
+        params.exp_id, result_dir, _get_exp_statistics(params)
     )
 
     try:
-        statistics = runner.run_sims(
+        statistics = runner.run_episode(
             env,
             policies,
+            params.num_episodes,
             trackers,
             renderers,
-            params.run_config,
+            time_limit=params.time_limit,
             logger=exp_logger,
             writer=writer
         )
@@ -331,8 +262,6 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         exp_logger.error(pformat(locals()))
         raise ex
     finally:
-        if params.cleanup_fn is not None:
-            params.cleanup_fn(params)
         _log_exp_end(
             params, result_dir, exp_logger, time.time() - exp_start_time
         )
@@ -376,6 +305,8 @@ def run_experiments(exp_name: str,
         proc_lock = init_args
         _init_lock(proc_lock)
         # limit ray to using only a single CPU per experiment process
+        # For now we just do this by default to save additional configuration
+        # even if policies being tested are not using ray
         logging.log(exp_log_level, "Initializing ray")
         ray.init(num_cpus=1, include_dashboard=False)
 

@@ -37,11 +37,9 @@ def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
     }
 
 
-def get_default_trackers(policies: Sequence[Pi.BasePolicy]) -> List['Tracker']:
+def get_default_trackers() -> List['Tracker']:
     """Get the default set of Trackers."""
-    num_agents = len(policies)
-    trackers = [EpisodeTracker(num_agents)]
-    return trackers
+    return [EpisodeTracker()]
 
 
 class Tracker(abc.ABC):
@@ -77,13 +75,15 @@ class Tracker(abc.ABC):
 class EpisodeTracker(Tracker):
     """Tracks episode return and other statistics."""
 
-    def __init__(self, num_agents: int):
-        self._num_agents = num_agents
+    def __init__(self):
+        # is initialized when step is first called
+        self._num_agents = None
 
         self._num_episodes = 0
         self._current_episode_done = False
         self._current_episode_start_time = time.time()
-        self._current_episode_returns = np.zeros(num_agents)
+        # is initialized when step is first called
+        self._current_episode_returns = None
         self._current_episode_steps = 0
 
         self._dones = []
@@ -99,6 +99,10 @@ class EpisodeTracker(Tracker):
              action: M.JointAction,
              policies: Sequence[Pi.BasePolicy],
              episode_end: bool):
+        if self._num_agents is None:
+            self._num_agents = env.n_agents
+            self._current_episode_returns = np.zeros(env.n_agents)
+
         if episode_t == 0:
             return
 

@@ -88,7 +88,7 @@ class LBFHeuristicPolicy(Pi.BasePolicy):
         for (y, x, level) in food_obs:
             if (
                 x == -1
-                or (max_food_level is not None and level < max_food_level)
+                or (max_food_level is not None and level > max_food_level)
             ):
                 continue
             dist = (agent_pos[0] - y)**2 + (agent_pos[1] - x)**2
@@ -111,18 +111,22 @@ class LBFHeuristicPolicy(Pi.BasePolicy):
     def _move_towards(self,
                       agent_pos: Tuple[int, int],
                       target: Tuple[int, int],
-                      allowed_actions: List[int]):
+                      allowed_actions: List[int]) -> List[LBFAction]:
         y, x = agent_pos
         r, c = target
 
+        valid_actions = []
         if r < y and LBFAction.NORTH in allowed_actions:
-            return LBFAction.NORTH
-        elif r > y and LBFAction.SOUTH in allowed_actions:
-            return LBFAction.SOUTH
-        elif c > x and LBFAction.EAST in allowed_actions:
-            return LBFAction.EAST
-        elif c < x and LBFAction.WEST in allowed_actions:
-            return LBFAction.WEST
+            valid_actions.append(LBFAction.NORTH)
+        if r > y and LBFAction.SOUTH in allowed_actions:
+            valid_actions.append(LBFAction.SOUTH)
+        if c > x and LBFAction.EAST in allowed_actions:
+            valid_actions.append(LBFAction.EAST)
+        if c < x and LBFAction.WEST in allowed_actions:
+            valid_actions.append(LBFAction.WEST)
+
+        if valid_actions:
+            return valid_actions
         else:
             raise ValueError("No simple path found")
 
@@ -134,9 +138,9 @@ class LBFHeuristicPolicy(Pi.BasePolicy):
         width, height = self.model.field_size
 
         valid_actions = []
-        if y < height-1 and (y+1, x) not in other_agent_pos:
-            valid_actions.append(LBFAction.NORTH)
         if y > 0 and (y-1, x) not in other_agent_pos:
+            valid_actions.append(LBFAction.NORTH)
+        if y < height-1 and (y+1, x) not in other_agent_pos:
             valid_actions.append(LBFAction.SOUTH)
         if x < width-1 and (y, x+1) not in other_agent_pos:
             valid_actions.append(LBFAction.EAST)
@@ -166,7 +170,7 @@ class LBFHeuristicPolicy(Pi.BasePolicy):
 
         valid_move_actions = self._get_valid_move_actions(agent_obs)
         try:
-            return [self._move_towards((y, x), (r, c), valid_move_actions)]
+            return self._move_towards((y, x), (r, c), valid_move_actions)
         except ValueError:
             if valid_move_actions:
                 return valid_move_actions
@@ -210,6 +214,13 @@ class LBFHeuristicPolicy2(LBFHeuristicPolicy):
     def _get_action_from_obs(self, obs: M.Observation) -> M.Action:
         agent_obs, food_obs = self.model.parse_obs(obs)
         other_agent_pos = [o[:2] for o in agent_obs[1:] if o[0] > -1]
+
+        if not other_agent_pos:
+            actions = self._get_valid_move_actions(agent_obs)
+            if actions:
+                return random.choice(actions)
+            return LBFAction.NONE
+
         center_pos = self._center_of_agents(other_agent_pos)
         actions = self._get_actions_towards_food(
             agent_obs, center_pos, food_obs
@@ -219,10 +230,18 @@ class LBFHeuristicPolicy2(LBFHeuristicPolicy):
     def _get_pi_from_obs(self, obs: M.Observation) -> Pi.ActionDist:
         agent_obs, food_obs = self.model.parse_obs(obs)
         other_agent_pos = [o[:2] for o in agent_obs[1:] if o[0] > -1]
-        center_pos = self._center_of_agents(other_agent_pos)
-        actions = self._get_actions_towards_food(
-            agent_obs, center_pos, food_obs
-        )
+
+        if not other_agent_pos:
+            # no visible agents
+            actions = self._get_valid_move_actions(agent_obs)
+            if not actions:
+                actions = [LBFAction.NONE]
+        else:
+            center_pos = self._center_of_agents(other_agent_pos)
+            actions = self._get_actions_towards_food(
+                agent_obs, center_pos, food_obs
+            )
+
         action_dist = {a: 0.0 for a in LBFAction}
         for a in actions:
             action_dist[a] = 1.0 / len(actions)
@@ -268,6 +287,13 @@ class LBFHeuristicPolicy4(LBFHeuristicPolicy):
     def _get_action_from_obs(self, obs: M.Observation) -> M.Action:
         agent_obs, food_obs = self.model.parse_obs(obs)
         other_agent_pos = [o[:2] for o in agent_obs[1:] if o[0] > -1]
+
+        if not other_agent_pos:
+            actions = self._get_valid_move_actions(agent_obs)
+            if actions:
+                return random.choice(actions)
+            return LBFAction.NONE
+
         agent_level_sum = sum([o[2] for o in agent_obs if o[0] > -1])
         center_pos = self._center_of_agents(other_agent_pos)
         actions = self._get_actions_towards_food(
@@ -278,11 +304,19 @@ class LBFHeuristicPolicy4(LBFHeuristicPolicy):
     def _get_pi_from_obs(self, obs: M.Observation) -> Pi.ActionDist:
         agent_obs, food_obs = self.model.parse_obs(obs)
         other_agent_pos = [o[:2] for o in agent_obs[1:] if o[0] > -1]
-        agent_level_sum = sum([o[2] for o in agent_obs if o[0] > -1])
-        center_pos = self._center_of_agents(other_agent_pos)
-        actions = self._get_actions_towards_food(
-            agent_obs, center_pos, food_obs, agent_level_sum
-        )
+
+        if not other_agent_pos:
+            # no visible agents
+            actions = self._get_valid_move_actions(agent_obs)
+            if not actions:
+                actions = [LBFAction.NONE]
+        else:
+            agent_level_sum = sum([o[2] for o in agent_obs if o[0] > -1])
+            center_pos = self._center_of_agents(other_agent_pos)
+            actions = self._get_actions_towards_food(
+                agent_obs, center_pos, food_obs, agent_level_sum
+            )
+
         action_dist = {a: 0.0 for a in LBFAction}
         for a in actions:
             action_dist[a] = 1.0 / len(actions)

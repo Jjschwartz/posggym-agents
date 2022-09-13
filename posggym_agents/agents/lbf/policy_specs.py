@@ -11,7 +11,6 @@ POLICY_SPECS = []
 
 for env_spec in sorted(registry.all(), key=lambda x: x.id):
     env_id = env_spec.id
-    print(env_id)
     if not env_id.startswith("LBF") or env_id.startswith("LBFGrid"):
         # heuristic agents only supported for LBF envs with vector obs
         continue
@@ -22,5 +21,5 @@ for env_spec in sorted(registry.all(), key=lambda x: x.id):
             heuristic_agent.LBFHeuristicPolicy3,
             heuristic_agent.LBFHeuristicPolicy4
     ]):
-        policy_spec = PolicySpec(f"{env_id}/heuristic{i}-v0", policy_class)
+        policy_spec = PolicySpec(f"{env_id}/heuristic{i+1}-v0", policy_class)
         POLICY_SPECS.append(policy_spec)

@@ -20,7 +20,7 @@ from posggym_agents.exp.exp import ExpParams, PolicyParams, get_exp_parser
 def get_rl_exp_parser() -> argparse.ArgumentParser:
     """Get command line argument parser with default rl experiment args.
 
-    Inherits argumenrts from the baposgmcp.run.exp.get_exp_parser() parser.
+    Inherits argumenrts from the posgyym_agent.exp.get_exp_parser() parser.
     """
     parser = get_exp_parser()
     parser.add_argument(

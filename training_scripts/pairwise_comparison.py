@@ -1,32 +1,27 @@
-"""Script for running pairwise evaluation of trained Rllib policies.
+"""Script for running pairwise evaluation of posggym policies.
 
-The script takes a list of rllib policy save directories as arguments.
-It then runs a pairwise evaluation between each policy in each of the policy
-directories.
+The script takes an environment ID and a list of policy ids as arguments.
+It then runs a pairwise evaluation for each possible pairing of policies.
 
 """
 from pprint import pprint
 
-import posggym_agents.rllib as pa_rllib
-from posggym_agents.exp.exp import run_experiments
-from posggym_agents.exp.rl_exp import get_rl_exp_parser, get_rl_exp_params
+import posggym_agents.exp as exp_lib
 
 
 def main(args):    # noqa
-    pa_rllib.register_posggym_env(args.env_name)
-
     print("\n== Running Experiments ==")
     pprint(vars(args))
 
     print("== Creating Experiments ==")
-    exp_params_list = get_rl_exp_params(**vars(args))
+    exp_params_list = exp_lib.get_symmetric_pairwise_exp_params(**vars(args))
 
     seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
-    exp_name = f"pairwise_comparison_{seed_str}"
+    exp_name = f"pairwise_{seed_str}"
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
-    run_experiments(
+    exp_lib.run_experiments(
         exp_name,
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
@@ -38,5 +33,5 @@ def main(args):    # noqa
 
 
 if __name__ == "__main__":
-    parser = get_rl_exp_parser()
+    parser = exp_lib.get_pairwise_exp_parser()
     main(parser.parse_args())

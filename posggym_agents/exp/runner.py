@@ -1,10 +1,6 @@
 import time
-import random
 import logging
 from typing import Sequence, Optional, Iterable, NamedTuple
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
-import numpy as np
 
 import posggym
 import posggym.model as M
@@ -26,50 +22,6 @@ class EpisodeLoopStep(NamedTuple):
     actions: Optional[M.JointAction]
     policies: Sequence[BasePolicy]
     done: bool
-
-
-class RunConfig(NamedTuple):
-    """Configuration options for running simulations."""
-    seed: Optional[int] = None
-    num_episodes: int = 100
-    time_limit: Optional[int] = None
-    use_checkpointing: bool = False
-
-
-def get_run_args(parser: Optional[ArgumentParser] = None) -> ArgumentParser:
-    """Get command line arguments for running episodes."""
-    if parser is None:
-        parser = ArgumentParser(
-            conflict_handler='resolve',
-            formatter_class=ArgumentDefaultsHelpFormatter
-        )
-
-    parser.add_argument(
-        "--seed", type=int, default=None,
-        help="RNG seed"
-    )
-    parser.add_argument(
-        "--num_episodes", type=int, default=100,
-        help="The number of episodes to run"
-    )
-    parser.add_argument(
-        "--time_limit", type=int, default=None,
-        help="Time limit (s) for running all simulations"
-    )
-    parser.add_argument(
-        "--render_mode", type=str, default=None,
-        help="Render mode for rendering episodes"
-    )
-    parser.add_argument(
-        "--pause_each_step", action="store_true",
-        help="Pause after each step is executed"
-    )
-    parser.add_argument(
-        "--log_level", type=str, default='INFO',
-        help="Logging level"
-    )
-
-    return parser
 
 
 def run_episode_loop(env: posggym.Env,
@@ -113,9 +65,10 @@ def run_episode_loop(env: posggym.Env,
 
 def run_episode(env: posggym.Env,
                 policies: Sequence[BasePolicy],
+                num_episodes: int,
                 trackers: Iterable[stats_lib.Tracker],
                 renderers: Iterable[render_lib.Renderer],
-                run_config: RunConfig,
+                time_limit: Optional[int] = None,
                 logger: Optional[logging.Logger] = None,
                 writer: Optional[writer_lib.Writer] = None
                 ) -> stats_lib.AgentStatisticsMap:
@@ -126,24 +79,20 @@ def run_episode(env: posggym.Env,
     logger.info(
         "%s\nRunning %d episodes with Time Limit = %s s\n%s",
         MAJOR_LINE_BREAK,
-        run_config.num_episodes,
-        str(run_config.time_limit),
+        num_episodes,
+        str(time_limit),
         MAJOR_LINE_BREAK
     )
 
-    if run_config.seed is not None:
-        random.seed(run_config.seed)
-        np.random.seed(run_config.seed)
-
     episode_num = 0
-    progress_display_freq = max(1, run_config.num_episodes // 10)
+    progress_display_freq = max(1, num_episodes // 10)
     time_limit_reached = False
     run_start_time = time.time()
 
     for tracker in trackers:
         tracker.reset()
 
-    while episode_num < run_config.num_episodes and not time_limit_reached:
+    while episode_num < num_episodes and not time_limit_reached:
         logger.log(
             logging.INFO - 1,
             "%s\nEpisode %d Start\n%s",
@@ -165,6 +114,8 @@ def run_episode(env: posggym.Env,
             render_lib.generate_renders(renderers, t, *loop_step)
 
         episode_statistics = stats_lib.generate_episode_statistics(trackers)
+        writer.write_episode(episode_statistics)
+
         logger.log(
             logging.INFO - 1,
             "%s\nEpisode %d Complete\n%s",
@@ -175,28 +126,17 @@ def run_episode(env: posggym.Env,
 
         if (episode_num + 1) % progress_display_freq == 0:
             logger.info(
-                "Episode %d / %d complete",
-                episode_num + 1,
-                run_config.num_episodes
+                "Episode %d / %d complete", episode_num + 1, num_episodes
             )
-
-        writer.write_episode(episode_statistics)
-
-        if run_config.use_checkpointing:
-            statistics = stats_lib.generate_statistics(trackers)
-            writer.write(statistics)
 
         episode_num += 1
 
-        if (
-            run_config.time_limit is not None
-            and time.time()-run_start_time > run_config.time_limit
-        ):
+        if time_limit is not None and time.time()-run_start_time > time_limit:
             time_limit_reached = True
             logger.info(
                 "%s\nTime limit of %d s reached after %d episodes",
                 MAJOR_LINE_BREAK,
-                run_config.time_limit,
+                time_limit,
                 episode_num
             )
 

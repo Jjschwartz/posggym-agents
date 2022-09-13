@@ -44,6 +44,7 @@ setup(
     ],
     install_requires=[
         'posggym',
+        "prettytable",
     ],
     extras_require=extras,
     python_requires='>=3.8',
