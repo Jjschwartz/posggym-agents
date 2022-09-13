@@ -25,10 +25,8 @@ class BasePolicy(abc.ABC):
         self.model = model
         self.agent_id = agent_id
         self.policy_id = policy_id
-
         self.history = AgentHistory.get_init_history()
         self._last_action = None
-        self._statistics: Dict[str, Any] = {}
 
     def step(self, obs: M.Observation) -> M.Action:
         """Execute a single policy step.
@@ -84,7 +82,7 @@ class BasePolicy(abc.ABC):
         """Get a value estimate from policy's hidden state."""
 
     def update(self, action: M.Action, obs: M.Observation) -> None:
-        """Update policy history."""
+        """Update policy."""
         self.history = self.history.extend(action, obs)
 
     def reset(self) -> None:
