@@ -95,7 +95,7 @@ class PolicySpec:
             )
 
         agent_pi = self.entry_point(
-            model, agent_id, self._policy_id, **_kwargs
+            model, agent_id, self.id, **_kwargs
         )
 
         # Make the agent policy aware of which spec it came from.

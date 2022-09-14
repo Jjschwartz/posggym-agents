@@ -27,7 +27,7 @@ class LBFHeuristicPolicy(Pi.BasePolicy):
                  agent_id: M.AgentID,
                  policy_id: str):
         super().__init__(model, agent_id, policy_id)
-        assert not model.grid_observation
+        assert model.observation_mode in ('vector', 'tuple')
 
     def _get_action_from_obs(self, obs: M.Observation) -> M.Action:
         """Get action from observation.
