@@ -12,7 +12,24 @@ PolicyHiddenState = Dict[str, Any]
 
 
 class BasePolicy(abc.ABC):
-    """Abstract policy interface."""
+    """Abstract policy interface.
+
+    Subclasses must implement:
+
+    get_action
+    get_pi
+
+    Subclasses may additionally wish to implement:
+
+    get_value
+
+    Subclasses will likely need to override depending on their implementation:
+
+    reset
+    update
+    reset_history
+
+    """
 
     # PolicySpec used to generate policy instance
     # This is set when policy is made using make function
@@ -52,12 +69,6 @@ class BasePolicy(abc.ABC):
         return action
 
     @abc.abstractmethod
-    def get_action_by_hidden_state(self,
-                                   hidden_state: PolicyHiddenState
-                                   ) -> M.Action:
-        """Get action given hidden state of agent."""
-
-    @abc.abstractmethod
     def get_pi(self,
                history: Optional[AgentHistory] = None
                ) -> ActionDist:
@@ -66,6 +77,54 @@ class BasePolicy(abc.ABC):
         If history is None then uses current history.
         """
 
+    def get_value(self, history: Optional[AgentHistory]) -> float:
+        """Get a value estimate of a history."""
+        raise NotImplementedError
+
+    def update(self, action: M.Action, obs: M.Observation) -> None:
+        """Update policy."""
+        self.history = self.history.extend(action, obs)
+
+    def reset(self) -> None:
+        """Reset the policy to it's initial state."""
+        self.history = AgentHistory.get_init_history()
+        self._last_action = None
+
+    def reset_history(self, history: AgentHistory) -> None:
+        """Reset policy state based on a history."""
+        self.history = history
+
+
+class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
+    """Abstract Hidden State policy interface.
+
+    Adds additional functions for accessing and setting the internal hidden
+    state of a policy.
+
+    Subclasses need to implement:
+
+    get_action_by_hidden_state
+    get_pi_from_hidden_state
+    get_value_by_hidden_state
+
+    Additional, subclasses can and sometime should override:
+
+    get_next_hidden_state
+    get_initial_hidden_state
+    get_hidden_state
+    set_hidden_state
+
+    If overriding these methods subclasses should call super() to ensure
+    history and last_action attributes are part of the hidden state.
+
+    """
+
+    @abc.abstractmethod
+    def get_action_by_hidden_state(self,
+                                   hidden_state: PolicyHiddenState
+                                   ) -> M.Action:
+        """Get action given hidden state of agent."""
+
     @abc.abstractmethod
     def get_pi_from_hidden_state(self,
                                  hidden_state: PolicyHiddenState
@@ -73,26 +132,9 @@ class BasePolicy(abc.ABC):
         """Get agent's distribution over actions for given hidden state."""
 
     @abc.abstractmethod
-    def get_value(self, history: Optional[AgentHistory]) -> float:
-        """Get a value estimate of a history."""
-
-    @abc.abstractmethod
     def get_value_by_hidden_state(self,
                                   hidden_state: PolicyHiddenState) -> float:
         """Get a value estimate from policy's hidden state."""
-
-    def update(self, action: M.Action, obs: M.Observation) -> None:
-        """Update policy."""
-        self.history = self.history.extend(action, obs)
-
-    def reset(self) -> None:
-        """Reset the policy."""
-        self.history = AgentHistory.get_init_history()
-        self._last_action = None
-
-    def reset_history(self, history: AgentHistory) -> None:
-        """Reset policy history to given history."""
-        self.history = history
 
     def get_next_hidden_state(self,
                               hidden_state: PolicyHiddenState,

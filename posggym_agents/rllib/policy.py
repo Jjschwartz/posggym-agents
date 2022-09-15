@@ -1,5 +1,4 @@
 import abc
-import time
 from typing import Optional, List, Any, Tuple, Dict
 
 from ray import rllib
@@ -20,7 +19,7 @@ _ACTION_PROB = "action_prob"
 _ACTION_LOGP = "action_logp"
 
 
-class RllibPolicy(Pi.BasePolicy):
+class RllibPolicy(Pi.BaseHiddenStatePolicy):
     """A Rllib Policy.
 
     This class essentially acts as an interface between BA-POSGMCP and an

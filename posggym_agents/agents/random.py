@@ -9,7 +9,7 @@ from posggym.utils.history import AgentHistory
 import posggym_agents.policy as Pi
 
 
-class FixedDistributionPolicy(Pi.BasePolicy):
+class FixedDistributionPolicy(Pi.BaseHiddenStatePolicy):
     """A policy that samples from a fixed distribution."""
 
     def __init__(self,
@@ -34,6 +34,11 @@ class FixedDistributionPolicy(Pi.BasePolicy):
             self._action_space, cum_weights=self._cum_weights, k=1
         )[0]
 
+    def get_action_by_hidden_state(self,
+                                   hidden_state: Pi.PolicyHiddenState
+                                   ) -> M.Action:
+        return self.get_action()
+
     def get_pi(self,
                history: Optional[AgentHistory] = None
                ) -> Pi.ActionDist:
@@ -45,16 +50,11 @@ class FixedDistributionPolicy(Pi.BasePolicy):
         return self.get_pi(None)
 
     def get_value(self, history: Optional[AgentHistory]) -> float:
-        return 0.0
+        raise NotImplementedError
 
     def get_value_by_hidden_state(self,
                                   hidden_state: Pi.PolicyHiddenState) -> float:
-        return 0.0
-
-    def get_action_by_hidden_state(self,
-                                   hidden_state: Pi.PolicyHiddenState
-                                   ) -> M.Action:
-        return self.get_action()
+        raise NotImplementedError
 
 
 class RandomPolicy(FixedDistributionPolicy):

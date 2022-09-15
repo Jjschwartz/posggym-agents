@@ -15,7 +15,7 @@ from posggym.utils.history import AgentHistory
 import posggym_agents.policy as Pi
 
 
-class LBFHeuristicPolicy(Pi.BasePolicy):
+class LBFHeuristicPolicy(Pi.BaseHiddenStatePolicy):
     """Heuristic agent for the Level-Based Foraging env.
 
     This is the abstract Level-Based Foraging env heuristic policy class.

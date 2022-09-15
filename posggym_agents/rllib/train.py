@@ -5,7 +5,6 @@ import ray
 from ray.tune.logger import pretty_print
 
 from posggym_agents import pbt
-from posggym_agents.config import BASE_RESULTS_DIR
 
 from posggym_agents.rllib.utils import RllibTrainerMap
 from posggym_agents.rllib.export_lib import export_trainers_to_file
