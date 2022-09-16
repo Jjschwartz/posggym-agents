@@ -105,6 +105,9 @@ class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
 
     get_action_by_hidden_state
     get_pi_from_hidden_state
+
+    Subclasse may wish to implement:
+
     get_value_by_hidden_state
 
     Additional, subclasses can and sometime should override:
@@ -131,10 +134,10 @@ class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
                                  ) -> ActionDist:
         """Get agent's distribution over actions for given hidden state."""
 
-    @abc.abstractmethod
     def get_value_by_hidden_state(self,
                                   hidden_state: PolicyHiddenState) -> float:
         """Get a value estimate from policy's hidden state."""
+        raise NotImplementedError
 
     def get_next_hidden_state(self,
                               hidden_state: PolicyHiddenState,
