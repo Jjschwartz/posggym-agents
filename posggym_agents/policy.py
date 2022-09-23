@@ -79,7 +79,9 @@ class BasePolicy(abc.ABC):
 
     def get_value(self, history: Optional[AgentHistory]) -> float:
         """Get a value estimate of a history."""
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"get_value() function not supported by {self.__class__.__name__}"
+        )
 
     def update(self, action: M.Action, obs: M.Observation) -> None:
         """Update policy."""
@@ -137,7 +139,10 @@ class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
     def get_value_by_hidden_state(self,
                                   hidden_state: PolicyHiddenState) -> float:
         """Get a value estimate from policy's hidden state."""
-        raise NotImplementedError
+        raise NotImplementedError(
+            "get_value_by_hidden_state() function not supported by "
+            f"{self.__class__.__name__}"
+        )
 
     def get_next_hidden_state(self,
                               hidden_state: PolicyHiddenState,

@@ -67,18 +67,6 @@ class LBFHeuristicPolicy(Pi.BaseHiddenStatePolicy):
         last_obs = hidden_state["history"].get_last_step()[1]
         return self._get_pi_from_obs(last_obs)
 
-    def get_value(self, history: Optional[AgentHistory]) -> float:
-        raise NotImplementedError(
-            f"get_value() function not supported by {self.__class__.__name__}"
-        )
-
-    def get_value_by_hidden_state(self,
-                                  hidden_state: Pi.PolicyHiddenState) -> float:
-        raise NotImplementedError(
-            "get_value_by_hidden_state() function not supported by "
-            f"{self.__class__.__name__}"
-        )
-
     def _closest_food(self,
                       agent_pos: Tuple[int, int],
                       food_obs: List[Tuple[int, int, int]],

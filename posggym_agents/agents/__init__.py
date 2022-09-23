@@ -9,6 +9,7 @@ from posggym_agents.agents.random import FixedDistributionPolicy
 from posggym_agents.agents import driving7x7roundabout_n2_v0
 from posggym_agents.agents import driving14x14wideroundabout_n2_v0
 from posggym_agents.agents import lbf
+from posggym_agents.agents import pursuit_evasion
 
 
 # Generic Random Policies
@@ -38,4 +39,10 @@ for policy_spec in driving14x14wideroundabout_n2_v0.POLICY_SPECS.values():
 # Level-Based Foraging
 # --------------------
 for policy_spec in lbf.POLICY_SPECS:
+    register_spec(policy_spec)
+
+
+# Pursuit Evasion
+# ---------------
+for policy_spec in pursuit_evasion.POLICY_SPECS:
     register_spec(policy_spec)
