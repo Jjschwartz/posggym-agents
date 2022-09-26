@@ -22,7 +22,6 @@ if __name__ == "__main__":
         args.env_name,
         k=args.k,
         best_response=args.train_best_response,
-        is_symmetric=True,
         seed=args.seed,
         trainer_config=config_lib.get_rl_training_config(
             args.env_name, args.seed, args.log_level

@@ -15,10 +15,10 @@ from posggym_agents import pbt
 from posggym_agents.pbt import InteractionGraph
 from posggym_agents.config import BASE_RESULTS_DIR
 
-from posggym_agents.rllib.train import run_training
 from posggym_agents.rllib.utils import RllibTrainerMap
 from posggym_agents.rllib.trainer import CustomPPOTrainer
 from posggym_agents.rllib.trainer import standard_logger_creator
+from posggym_agents.rllib.train import run_training, sync_policies
 from posggym_agents.rllib.utils import get_igraph_policy_mapping_fn
 from posggym_agents.rllib.export_lib import export_trainers_to_file
 from posggym_agents.rllib.utils import posggym_registered_env_creator
@@ -76,7 +76,6 @@ def get_train_klr_exp_parser() -> argparse.ArgumentParser:
 def get_klr_igraph(env: RllibMultiAgentEnv,
                    k: int,
                    best_response: bool,
-                   is_symmetric: bool,
                    seed: Optional[int]) -> InteractionGraph:
     """Get KLR interaction graph."""
     agent_ids = list(env.get_agent_ids())
@@ -86,28 +85,28 @@ def get_klr_igraph(env: RllibMultiAgentEnv,
         igraph = pbt.construct_klrbr_interaction_graph(
             agent_ids,
             k,
-            is_symmetric=is_symmetric,
+            is_symmetric=env.env.model.is_symmetric,
             dist=None,     # uses poisson with lambda=1.0
             seed=seed
         )
     else:
         igraph = pbt.construct_klr_interaction_graph(
-            agent_ids, k, is_symmetric=is_symmetric, seed=seed
+            agent_ids, k, is_symmetric=env.env.model.is_symmetric, seed=seed
         )
     return igraph
 
 
-def get_klr_trainer(env_name: str,
-                    env: RllibMultiAgentEnv,
-                    igraph: InteractionGraph,
-                    seed: Optional[int],
-                    trainer_config: Dict[str, Any],
-                    num_workers: int,
-                    num_gpus_per_trainer: float,
-                    logger_creator: Optional[Callable] = None,
-                    run_serially: bool = False
-                    ) -> RllibTrainerMap:
-    """Get Rllib trainer for self-play trained agents."""
+def get_symmetric_klr_trainer(env_name: str,
+                              env: RllibMultiAgentEnv,
+                              igraph: InteractionGraph,
+                              seed: Optional[int],
+                              trainer_config: Dict[str, Any],
+                              num_workers: int,
+                              num_gpus_per_trainer: float,
+                              logger_creator: Optional[Callable] = None,
+                              run_serially: bool = False
+                              ) -> RllibTrainerMap:
+    """Get Rllib trainer for K-Level Reasoning agents in symmetric env."""
     assert igraph.is_symmetric, "Currently only symmetric envs supported."
     # obs and action spaces are the same for all agents for symmetric envs
     obs_space = env.observation_space["0"]
@@ -173,11 +172,110 @@ def get_klr_trainer(env_name: str,
     return trainer_map
 
 
+def get_asymmetric_klr_trainer(env_name: str,
+                               env: RllibMultiAgentEnv,
+                               igraph: InteractionGraph,
+                               seed: Optional[int],
+                               trainer_config: Dict[str, Any],
+                               num_workers: int,
+                               num_gpus_per_trainer: float,
+                               logger_creator: Optional[Callable] = None,
+                               run_serially: bool = False
+                               ) -> RllibTrainerMap:
+    """Get Rllib trainer for K-Level Reasoning agents in asymmetric env."""
+    assert not igraph.is_symmetric
+
+    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
+
+    agent_ppo_policy_specs = {
+        i: PolicySpec(
+            PPOTorchPolicy,
+            env.observation_space[str(i)],
+            env.action_space[str(i)],
+            {}
+        )
+        for i in igraph.get_agent_ids()
+    }
+    agent_random_policy_specs = {
+        i: PolicySpec(
+            RandomPolicy,
+            env.observation_space[str(i)],
+            env.action_space[str(i)],
+            {}
+        )
+        for i in igraph.get_agent_ids()
+    }
+
+    # map from agent_id to agent trainer map
+    trainer_map = {i: {} for i in igraph.get_agent_ids()}
+    for agent_id in igraph.get_agent_ids():
+        for train_policy_id in igraph.get_agent_policy_ids(agent_id):
+            connected_policy_ids = []
+            for j in igraph.get_agent_ids():
+                connected_policies = igraph.get_all_policies(
+                    agent_id, train_policy_id, j
+                )
+                assert len(connected_policies) <= 1
+                connected_policy_ids.extend([c[0] for c in connected_policies])
+
+            if len(connected_policy_ids) == 0:
+                # k = -1
+                continue
+
+            if logger_creator is None:
+                pi_logger_creator = standard_logger_creator(
+                    env_name, "klr", seed, train_policy_id
+                )
+
+            train_policy_spec = agent_ppo_policy_specs[agent_id]
+            policy_spec_map = {train_policy_id: train_policy_spec}
+            for policy_j_id in connected_policy_ids:
+                j, k = pbt.parse_klr_policy_id(policy_j_id)
+                if k == -1:
+                    policy_spec_j = agent_random_policy_specs[j]
+                else:
+                    policy_spec_j = agent_ppo_policy_specs[j]
+                policy_spec_map[policy_j_id] = policy_spec_j
+
+            if run_serially:
+                print("Running serially")
+                trainer_k = get_trainer(
+                    env_name,
+                    trainer_class=CustomPPOTrainer,
+                    policies=policy_spec_map,
+                    policy_mapping_fn=policy_mapping_fn,
+                    policies_to_train=[train_policy_id],
+                    default_trainer_config=trainer_config,
+                    logger_creator=pi_logger_creator
+                )
+                trainer_k_weights = trainer_k.get_weights([train_policy_id])
+            else:
+                trainer_k = get_remote_trainer(
+                    env_name,
+                    trainer_class=CustomPPOTrainer,
+                    policies=policy_spec_map,
+                    policy_mapping_fn=policy_mapping_fn,
+                    policies_to_train=[train_policy_id],
+                    num_workers=num_workers,
+                    num_gpus_per_trainer=num_gpus_per_trainer,
+                    default_trainer_config=trainer_config,
+                    logger_creator=pi_logger_creator
+                )
+                trainer_k_weights = trainer_k.get_weights.remote(
+                    [train_policy_id]
+                )
+
+            trainer_map[agent_id][train_policy_id] = trainer_k
+            igraph.update_policy(agent_id, train_policy_id, trainer_k_weights)
+
+    sync_policies(trainer_map, igraph)
+    return trainer_map
+
+
 def get_klr_igraph_and_trainer(env_name: str,
                                env: RllibMultiAgentEnv,
                                k: int,
                                best_response: bool,
-                               is_symmetric: bool,
                                seed: Optional[int],
                                trainer_config: Dict[str, Any],
                                num_workers: int,
@@ -186,25 +284,37 @@ def get_klr_igraph_and_trainer(env_name: str,
                                run_serially: bool = False
                                ) -> Tuple[InteractionGraph, RllibTrainerMap]:
     """Get igraph and trainer for KLR agent."""
-    igraph = get_klr_igraph(env, k, best_response, is_symmetric, seed)
-    trainer_map = get_klr_trainer(
-        env_name,
-        env,
-        igraph,
-        seed,
-        trainer_config,
-        num_workers,
-        num_gpus_per_trainer,
-        logger_creator,
-        run_serially
-    )
+    igraph = get_klr_igraph(env, k, best_response, seed)
+    if igraph.is_symmetric:
+        trainer_map = get_symmetric_klr_trainer(
+            env_name,
+            env,
+            igraph,
+            seed,
+            trainer_config,
+            num_workers,
+            num_gpus_per_trainer,
+            logger_creator,
+            run_serially
+        )
+    else:
+        trainer_map = get_asymmetric_klr_trainer(
+            env_name,
+            env,
+            igraph,
+            seed,
+            trainer_config,
+            num_workers,
+            num_gpus_per_trainer,
+            logger_creator,
+            run_serially
+        )
     return igraph, trainer_map
 
 
 def train_klr_policy(env_name: str,
                      k: int,
                      best_response: bool,
-                     is_symmetric: bool,
                      seed: Optional[int],
                      trainer_config: Dict[str, Any],
                      num_workers: int,
@@ -221,9 +331,10 @@ def train_klr_policy(env_name: str,
     register_env(env_name, posggym_registered_env_creator)
     env = posggym_registered_env_creator(trainer_config["env_config"])
 
-    num_trainers = (k+1)
-    if best_response:
-        num_trainers += 1
+    num_trainers = k+2 if best_response else k+1
+    if not env.env.model.is_symmetric:
+        # one trainer per K per agent
+        num_trainers *= len(env.get_agent_ids())
     num_gpus_per_trainer = num_gpus / num_trainers
 
     igraph, trainer_map = get_klr_igraph_and_trainer(
@@ -231,7 +342,6 @@ def train_klr_policy(env_name: str,
         env,
         k,
         best_response,
-        is_symmetric,
         seed,
         trainer_config=trainer_config,
         num_workers=num_workers,

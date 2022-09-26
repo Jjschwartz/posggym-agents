@@ -8,8 +8,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config", type=str,
         help=(
-            "Module path to python file containing training config "
-            "(e.g. Driving7x7RoundAbout-n2-v0.rl_config)."
+            "Module path to python file containing training config (e.g. "
+            "posggym_agents.agents.driving7x7roundabout_n2_v0.train_config)."
         )
     )
     args = parser.parse_args()

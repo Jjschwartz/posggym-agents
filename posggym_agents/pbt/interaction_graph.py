@@ -311,6 +311,9 @@ class InteractionGraph:
         if len(self._graph[agent_id][policy_id]) == 0:
             return []
 
+        if not self._symmetric and agent_id == other_agent_id:
+            return []
+
         other_policy_dist = self._graph[agent_id][policy_id][other_agent_id]
         other_policy_ids = list(other_policy_dist)
         other_policies = []

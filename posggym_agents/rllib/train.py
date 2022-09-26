@@ -58,7 +58,7 @@ def _check_train_policy_weights(trainer):
                 )
 
 
-def _sync_policies(trainers: RllibTrainerMap, igraph: pbt.InteractionGraph):
+def sync_policies(trainers: RllibTrainerMap, igraph: pbt.InteractionGraph):
     """Sync the policies for between trainers based on interactiong graph."""
     agent_ids = list(trainers)
     agent_ids.sort()
@@ -105,7 +105,7 @@ def run_training(trainers: RllibTrainerMap,
         if verbose:
             print(f"== Iteration {iteration} ==")
 
-        _sync_policies(trainers, igraph)
+        sync_policies(trainers, igraph)
 
         result_futures = {i: {} for i in agent_ids}    # type: ignore
         for i, policy_map in trainers.items():

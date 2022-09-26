@@ -14,11 +14,11 @@ from posggym_agents import pbt
 from posggym_agents.pbt import InteractionGraph
 from posggym_agents.config import BASE_RESULTS_DIR
 
-from posggym_agents.rllib.train import run_training
 from posggym_agents.rllib.utils import RllibTrainerMap
 from posggym_agents.rllib.trainer import CustomPPOTrainer
 from posggym_agents.rllib.trainer import get_remote_trainer
 from posggym_agents.rllib.trainer import standard_logger_creator
+from posggym_agents.rllib.train import run_training, sync_policies
 from posggym_agents.rllib.utils import get_igraph_policy_mapping_fn
 from posggym_agents.rllib.export_lib import export_trainers_to_file
 from posggym_agents.rllib.utils import posggym_registered_env_creator
@@ -66,29 +66,22 @@ def get_sp_igraph(env: RllibMultiAgentEnv,
     agent_ids = list(env.get_agent_ids())
     agent_ids.sort()
 
-    obs_space = env.observation_space["0"]
-    act_space = env.action_space["0"]
-    assert all(env.observation_space[i] == obs_space for i in agent_ids), \
-        "Self-play only supported for envs with same obs space for all agents."
-    assert all(env.action_space[i] == act_space for i in agent_ids), \
-        "Self-play only supported for envs with same act space for all agents."
-
     igraph = pbt.construct_sp_interaction_graph(
-        agent_ids, is_symmetric=True, seed=seed
+        agent_ids, is_symmetric=env.env.model.is_symmetric, seed=seed
     )
     return igraph
 
 
-def get_sp_trainer(env_name: str,
-                   env: RllibMultiAgentEnv,
-                   igraph: InteractionGraph,
-                   seed: Optional[int],
-                   trainer_config: Dict[str, Any],
-                   num_workers: int,
-                   num_gpus_per_trainer: float,
-                   logger_creator: Optional[Callable] = None
-                   ) -> RllibTrainerMap:
-    """Get Rllib trainer for self-play trained agents."""
+def get_symmetric_sp_trainer(env_name: str,
+                             env: RllibMultiAgentEnv,
+                             igraph: InteractionGraph,
+                             seed: Optional[int],
+                             trainer_config: Dict[str, Any],
+                             num_workers: int,
+                             num_gpus_per_trainer: float,
+                             logger_creator: Optional[Callable] = None
+                             ) -> RllibTrainerMap:
+    """Get Rllib trainer for self-play trained agents in symmetric env."""
     assert igraph.is_symmetric
     # obs and action spaces are the same for all agents for symmetric envs
     obs_space = env.observation_space["0"]
@@ -130,6 +123,69 @@ def get_sp_trainer(env_name: str,
     return trainer_map
 
 
+def get_asymmetric_sp_trainer(env_name: str,
+                              env: RllibMultiAgentEnv,
+                              igraph: InteractionGraph,
+                              seed: Optional[int],
+                              trainer_config: Dict[str, Any],
+                              num_workers: int,
+                              num_gpus_per_trainer: float,
+                              logger_creator: Optional[Callable] = None
+                              ) -> RllibTrainerMap:
+    """Get Rllib trainer for self-play trained agents in asymmetric env."""
+    assert not igraph.is_symmetric
+    # assumes a single policy for each agent
+    assert all(
+        len(igraph.get_agent_policy_ids(i)) == 1
+        for i in igraph._agent_ids
+    )
+
+    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
+
+    policy_spec_map = {}
+    for i in igraph.get_agent_ids():
+        policy_id = igraph.get_agent_policy_ids(i)[0]
+        policy_spec = PolicySpec(
+            PPOTorchPolicy,
+            env.observation_space[str(i)],
+            env.action_space[str(i)],
+            {}
+        )
+        policy_spec_map[policy_id] = policy_spec
+
+    # map from agent_id to agent trainer map
+    trainer_map = {}
+    for agent_id in igraph.get_agent_ids():
+        train_policy_id = igraph.get_agent_policy_ids(agent_id)[0]
+
+        if logger_creator is None:
+            logger_creator = standard_logger_creator(
+                env_name, "sp", seed, train_policy_id
+            )
+
+        trainer = get_remote_trainer(
+            env_name,
+            trainer_class=CustomPPOTrainer,
+            policies=policy_spec_map,
+            policy_mapping_fn=policy_mapping_fn,
+            policies_to_train=[train_policy_id],
+            num_workers=num_workers,
+            num_gpus_per_trainer=num_gpus_per_trainer,
+            default_trainer_config=trainer_config,
+            logger_creator=logger_creator
+        )
+
+        trainer_map[agent_id] = {train_policy_id: trainer}
+        igraph.update_policy(
+            agent_id,
+            train_policy_id,
+            trainer.get_weights.remote(train_policy_id)
+        )
+
+    sync_policies(trainer_map, igraph)
+    return trainer_map
+
+
 def get_sp_igraph_and_trainer(env_name: str,
                               env: RllibMultiAgentEnv,
                               seed: Optional[int],
@@ -140,16 +196,28 @@ def get_sp_igraph_and_trainer(env_name: str,
                               ) -> Tuple[InteractionGraph, RllibTrainerMap]:
     """Get igraph and trainer for self-play agent."""
     igraph = get_sp_igraph(env, seed)
-    trainer_map = get_sp_trainer(
-        env_name,
-        env,
-        igraph,
-        seed,
-        trainer_config,
-        num_workers,
-        num_gpus_per_trainer,
-        logger_creator
-    )
+    if igraph.is_symmetric:
+        trainer_map = get_symmetric_sp_trainer(
+            env_name,
+            env,
+            igraph,
+            seed,
+            trainer_config,
+            num_workers,
+            num_gpus_per_trainer,
+            logger_creator
+        )
+    else:
+        trainer_map = get_asymmetric_sp_trainer(
+            env_name,
+            env,
+            igraph,
+            seed,
+            trainer_config,
+            num_workers,
+            num_gpus_per_trainer,
+            logger_creator
+        )
     return igraph, trainer_map
 
 
@@ -168,13 +236,18 @@ def train_sp_policy(env_name: str,
     register_env(env_name, posggym_registered_env_creator)
     env = posggym_registered_env_creator(trainer_config["env_config"])
 
+    num_gpus_per_trainer = num_gpus
+    if not env.env.model.is_symmetric:
+        # one trainer per agent so divide up GPUS
+        num_gpus_per_trainer = num_gpus / len(env.get_agent_ids())
+
     igraph, trainer_map = get_sp_igraph_and_trainer(
         env_name,
         env,
         seed,
         trainer_config=trainer_config,
         num_workers=num_workers,
-        num_gpus_per_trainer=num_gpus,
+        num_gpus_per_trainer=num_gpus_per_trainer,
         logger_creator=None
     )
     igraph.display()

@@ -115,7 +115,7 @@ def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
 
         return igraph.sample_policy(
             train_agent_id, train_policy_id, agent_id
-        )
+        )[0]
 
     if igraph.is_symmetric:
         return symmetric_mapping_fn
