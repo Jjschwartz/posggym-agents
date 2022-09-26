@@ -215,7 +215,6 @@ def get_asymmetric_klr_trainer(env_name: str,
                 connected_policies = igraph.get_all_policies(
                     agent_id, train_policy_id, j
                 )
-                assert len(connected_policies) <= 1
                 connected_policy_ids.extend([c[0] for c in connected_policies])
 
             if len(connected_policy_ids) == 0:
