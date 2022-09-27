@@ -10,6 +10,7 @@ from posggym_agents.agents import driving7x7roundabout_n2_v0
 from posggym_agents.agents import driving14x14wideroundabout_n2_v0
 from posggym_agents.agents import lbf
 from posggym_agents.agents import pursuit_evasion
+from posggym_agents.agents import pursuitevasion8x8_v0
 
 
 # Generic Random Policies
@@ -44,5 +45,9 @@ for policy_spec in lbf.POLICY_SPECS:
 
 # Pursuit Evasion
 # ---------------
+# Generic agents
 for policy_spec in pursuit_evasion.POLICY_SPECS:
+    register_spec(policy_spec)
+
+for policy_spec in pursuitevasion8x8_v0.POLICY_SPECS.values():
     register_spec(policy_spec)

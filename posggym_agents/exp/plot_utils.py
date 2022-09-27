@@ -49,8 +49,41 @@ def add_outcome_proportions(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def clean_df_policy_ids(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove environment name from policy ID, if it's present."""
+
+    def clean(row):
+        if "/" in row["policy_id"]:
+            return row["policy_id"].split("/")[1]
+        return row["policy_id"]
+
+    df["policy_id"] = df.apply(clean, axis=1)
+    return df
+
+
+def add_df_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
+    """Add co-player policy ID to dataframe."""
+    assert len(df["agent_id"].unique().tolist()) == 2
+
+    df_0 = df[df["agent_id"] == 0]
+    df_1 = df[df["agent_id"] == 1]
+    # disable warning
+    pd.options.mode.chained_assignment = None
+    df_0["coplayer_policy_id"] = df_0["exp_id"].map(
+        df_1.set_index("exp_id")["policy_id"].to_dict()
+    )
+    df_1["coplayer_policy_id"] = df_1["exp_id"].map(
+        df_0.set_index("exp_id")["policy_id"].to_dict()
+    )
+    # enable warning
+    pd.options.mode.chained_assignment = 'warn'
+    return pd.concat([df_0, df_1]).reset_index(drop=True)
+
+
 def import_results(result_file: str,
-                   columns_to_drop: Optional[List[str]] = None
+                   columns_to_drop: Optional[List[str]] = None,
+                   clean_policy_id: bool = True,
+                   add_coplayer_policy_id: bool = True,
                    ) -> pd.DataFrame:
     """Import experiment results."""
     df = pd.read_csv(result_file)
@@ -61,16 +94,13 @@ def import_results(result_file: str,
     df = add_95CI(df)
     df = add_outcome_proportions(df)
 
+    if clean_policy_id:
+        df = clean_df_policy_ids(df)
+
+    if add_coplayer_policy_id:
+        df = add_df_coplayer_policy_id(df)
+
     return df
-
-
-def _sort_and_display(df: pd.DataFrame, key: str, display_name: str):
-    values = df[key].unique()
-    try:
-        values.sort()
-    except TypeError:
-        pass
-    print(f"{display_name}: {values}")
 
 
 def filter_by(df: pd.DataFrame,
