@@ -16,8 +16,7 @@ def main(args):    # noqa
     print("== Creating Experiments ==")
     exp_params_list = exp_lib.get_symmetric_pairwise_exp_params(**vars(args))
 
-    seed_str = f"initseed{args.init_seed}_numseeds{args.num_seeds}"
-    exp_name = f"pairwise_{seed_str}"
+    exp_name = f"pairwise_initseed{args.init_seed}_numseeds{args.num_seeds}"
 
     print(f"== Running {len(exp_params_list)} Experiments ==")
     print(f"== Using {args.n_procs} CPUs ==")
@@ -33,5 +32,5 @@ def main(args):    # noqa
 
 
 if __name__ == "__main__":
-    parser = exp_lib.get_pairwise_exp_parser()
+    parser = exp_lib.get_symmetric_pairwise_exp_parser()
     main(parser.parse_args())
