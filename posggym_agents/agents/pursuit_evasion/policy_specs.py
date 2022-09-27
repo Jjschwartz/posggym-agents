@@ -19,5 +19,5 @@ for env_spec in sorted(registry.all(), key=lambda x: x.id):
         # envs
         continue
 
-    policy_spec = PolicySpec(f"{env_id}/sp-v0", PESPPolicy)
+    policy_spec = PolicySpec(f"{env_id}/shortestpath-v0", PESPPolicy)
     POLICY_SPECS.append(policy_spec)
