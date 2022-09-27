@@ -75,9 +75,9 @@ class PolicySpec:
         self._policy_version = match.group(2)
 
         if "/" in id:
-            self.env_name, _ = id.split("/")
+            self.env_id, _ = id.split("/")
         else:
-            self.env_name = None
+            self.env_id = None
 
     def make(self,
              model: M.POSGModel,
@@ -94,9 +94,7 @@ class PolicySpec:
                 f"{self.valid_agent_ids}."
             )
 
-        agent_pi = self.entry_point(
-            model, agent_id, self.id, **_kwargs
-        )
+        agent_pi = self.entry_point(model, agent_id, self.id, **_kwargs)
 
         # Make the agent policy aware of which spec it came from.
         spec = copy.deepcopy(self)
@@ -120,6 +118,7 @@ class PolicyRegistry:
              model: M.POSGModel,
              agent_id: M.AgentID,
              **kwargs) -> BasePolicy:
+        """Make policy with given ID."""
         if len(kwargs) > 0:
             logger.info(
                 "Making new policy: %s (model=%s agent_id=%s kwargs=%s)",
@@ -134,9 +133,11 @@ class PolicyRegistry:
         return spec.make(model, agent_id, **kwargs)
 
     def all(self) -> Sequence[PolicySpec]:
+        """Get all registered PolicySpecs."""
         return self.policy_specs.values()
 
     def spec(self, id: str) -> PolicySpec:
+        """Get PolicySpec with given ID."""
         match = POLICY_ID_RE.search(id)
         if not match:
             raise error.Error(
@@ -147,7 +148,7 @@ class PolicyRegistry:
         try:
             return self.policy_specs[id]
         except KeyError:
-            raise error.Unregistered("No registered policy with id: {id}")
+            raise error.Unregistered(f"No registered policy with id: {id}")
 
     def register(self, id: str, entry_point: PolicyEntryPoint, **kwargs):
         """Register policy in register."""
@@ -158,6 +159,10 @@ class PolicyRegistry:
         if policy_spec.id in self.policy_specs:
             logger.warn(f"Overriding policy {spec.id}")
         self.policy_specs[policy_spec.id] = policy_spec
+
+    def all_for_env(self, env_id: str) -> List[PolicySpec]:
+        """Get all PolicySpecs that are associated with given environment."""
+        return [pi_spec for pi_spec in self.all() if pi_spec.env_id == env_id]
 
 
 # Global registry that all implemented policies are added too
