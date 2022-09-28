@@ -94,8 +94,8 @@ def import_trainer(trainer_dir: str,
     )
 
     config = _import_trainer_config(trainer_dir)
-
-    nested_update(config, extra_config)
+    if extra_config:
+        nested_update(config, extra_config)
 
     if not trainer_args.trainer_remote:
         trainer = get_trainer(
@@ -351,7 +351,7 @@ def import_policy_from_dir(model: M.POSGModel,
         "num_gpus": 0.0,
         "num_workers": 0,
         "num_envs_per_worker": 1,
-        "log_level": "DEBUG",
+        "log_level": "ERROR",
         # disables logging of CPU and GPU usage
         "log_sys_usage": False,
         # Disable exploration
