@@ -174,7 +174,6 @@ def get_asymmetric_pairwise_exp_params(env_name: str,
     for i, (exp_seed, policies) in enumerate(product(
             range(num_seeds), product(*policy_ids)
     )):
-        print(i, exp_seed, policies)
         exp_params = ExpParams(
             exp_id=exp_id_init+i,
             env_name=env_name,
