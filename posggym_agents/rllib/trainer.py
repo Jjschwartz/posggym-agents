@@ -58,15 +58,15 @@ def custom_log_creator(custom_path: str,
     return logger_creator
 
 
-def standard_logger_creator(env_name: str,
+def standard_logger_creator(env_id: str,
                             parent_dir: str,
                             seed: Optional[int],
                             suffix: Optional[str]) -> Callable:
     """Get standard logger creator for training.
 
-    Logs results to ~/ray_results/{env_name}/{parent_dir}/seed{seed}{_suffix}
+    Logs results to ~/ray_results/{env_id}/{parent_dir}/seed{seed}{_suffix}
     """
-    custom_path = os.path.join(env_name, parent_dir)
+    custom_path = os.path.join(env_id, parent_dir)
 
     custom_str = f"seed{seed}"
     if suffix is not None:
@@ -75,7 +75,7 @@ def standard_logger_creator(env_name: str,
     return custom_log_creator(custom_path, custom_str, True)
 
 
-def get_remote_trainer(env_name: str,
+def get_remote_trainer(env_id: str,
                        trainer_class,
                        policies,
                        policy_mapping_fn,
@@ -107,7 +107,7 @@ def get_remote_trainer(env_name: str,
         trainer_config["num_gpus"] = 1.0
 
     trainer = trainer_remote.remote(
-        env=env_name,
+        env=env_id,
         config=trainer_config,
         logger_creator=logger_creator
     )
@@ -115,7 +115,7 @@ def get_remote_trainer(env_name: str,
     return trainer
 
 
-def get_trainer(env_name: str,
+def get_trainer(env_id: str,
                 trainer_class,
                 policies,
                 policy_mapping_fn,
@@ -131,7 +131,7 @@ def get_trainer(env_name: str,
     }
 
     trainer = trainer_class(
-        env=env_name,
+        env=env_id,
         config=trainer_config,
         logger_creator=logger_creator
     )

@@ -19,12 +19,12 @@ if __name__ == "__main__":
         "Config file must define function 'get_rl_training_config'."
 
     train_klr_policy(
-        args.env_name,
+        args.env_id,
         k=args.k,
         best_response=args.train_best_response,
         seed=args.seed,
         trainer_config=config_lib.get_rl_training_config(
-            args.env_name, args.seed, args.log_level
+            args.env_id, args.seed, args.log_level
         ),
         num_workers=args.num_workers,
         num_gpus=args.num_gpus,

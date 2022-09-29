@@ -99,7 +99,7 @@ def import_trainer(trainer_dir: str,
 
     if not trainer_args.trainer_remote:
         trainer = get_trainer(
-            env_name=config["env_config"]["env_name"],
+            env_id=config["env_config"]["env_name"],
             trainer_class=trainer_args.trainer_class,
             policies=config["multiagent"]["policies"],
             policy_mapping_fn=config["multiagent"]["policy_mapping_fn"],
@@ -112,7 +112,7 @@ def import_trainer(trainer_dir: str,
 
     # Import Trainer on remote actor
     remote_trainer = get_remote_trainer(
-        env_name=config["env_config"]["env_name"],
+        env_id=config["env_config"]["env_name"],
         trainer_class=trainer_args.trainer_class,
         policies=config["multiagent"]["policies"],
         policy_mapping_fn=config["multiagent"]["policy_mapping_fn"],

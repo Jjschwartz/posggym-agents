@@ -47,7 +47,7 @@ def _init_lock(lck):
 class ExpParams(NamedTuple):
     """Params for a single experiment run."""
     exp_id: int
-    env_name: str
+    env_id: str
     policy_ids: List[str]
     seed: int
     num_episodes: int
@@ -87,7 +87,7 @@ def get_exp_parser() -> argparse.ArgumentParser:
         help=(
             "Optional directory to save results in. If supplied then it must "
             "be an existing directory. If None the default "
-            "~/posggym_agents_results/<env_name>/results/ dir is used root "
+            "~/posggym_agents_results/<env_id>/results/ dir is used root "
             "results dir."
         )
     )
@@ -95,12 +95,12 @@ def get_exp_parser() -> argparse.ArgumentParser:
 
 
 def make_exp_result_dir(exp_name: str,
-                        env_name: str,
+                        env_id: str,
                         root_save_dir: Optional[str] = None) -> str:
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
-        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_name, "results")
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id, "results")
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(
         prefix=f"{exp_name}_{time_str}", dir=root_save_dir
@@ -178,7 +178,7 @@ def _get_exp_statistics(params: ExpParams) -> stats_lib.AgentStatisticsMap:
         stats[i] = {
             "exp_id": params.exp_id,
             "agent_id": i,
-            "env_name": params.env_name,
+            "env_id": params.env_id,
             "policy_id": params.policy_ids[i],
             "exp_seed": params.seed,
             "num_episodes": params.num_episodes,
@@ -192,7 +192,7 @@ def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
 
 
 def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
-    env = posggym.make(params.env_name, **{"seed": params.seed})
+    env = posggym.make(params.env_id, **{"seed": params.seed})
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:
@@ -288,7 +288,7 @@ def run_experiments(exp_name: str,
     logging.log(exp_log_level, "Running %d experiments", num_exps)
 
     result_dir = make_exp_result_dir(
-        exp_name, exp_params_list[0].env_name, root_save_dir
+        exp_name, exp_params_list[0].env_id, root_save_dir
     )
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 

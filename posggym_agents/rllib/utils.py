@@ -30,6 +30,8 @@ def posggym_registered_env_creator(config):
     "seed" - environment seed
     "flatten_obs" - bool whether to use observation flattening wrapper
                    (default=True)
+
+    Note use "env_name" instead of "env_id" to be compatible with rllib API.
     """
     env = posggym.make(config["env_name"], **{"seed": config["seed"]})
     if config.get("flatten_obs", True):
@@ -37,9 +39,9 @@ def posggym_registered_env_creator(config):
     return RllibMultiAgentEnv(env)
 
 
-def register_posggym_env(env_name: str):
+def register_posggym_env(env_id: str):
     """Register posggym env with Ray."""
-    register_env(env_name, posggym_registered_env_creator)
+    register_env(env_id, posggym_registered_env_creator)
 
 
 def identity_preprocessor(obs: M.Observation) -> Any:

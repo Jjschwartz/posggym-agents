@@ -20,7 +20,7 @@ def get_symmetric_pairwise_exp_parser() -> argparse.ArgumentParser:
     """
     parser = get_exp_parser()
     parser.add_argument(
-        "--env_name", type=str,
+        "--env_id", type=str,
         help="Name of the environment to run experiment in."
     )
     parser.add_argument(
@@ -49,7 +49,7 @@ def get_symmetric_pairwise_exp_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_symmetric_pairwise_exp_params(env_name: str,
+def get_symmetric_pairwise_exp_params(env_id: str,
                                       policy_ids: Optional[Sequence[str]],
                                       init_seed: int,
                                       num_seeds: int,
@@ -64,12 +64,12 @@ def get_symmetric_pairwise_exp_params(env_name: str,
     - Assumes that the environment is symmetric.
     - Will create an experiment for every possible pairing of policy ids.
     """
-    env = posggym.make(env_name)
+    env = posggym.make(env_id)
     assert env.is_symmetric
 
     if policy_ids is None:
         from posggym_agents.agents.registration import registry
-        policy_ids = [spec.id for spec in registry.all_for_env(env_name)]
+        policy_ids = [spec.id for spec in registry.all_for_env(env_id)]
 
     exp_params_list = []
     for i, (exp_seed, policies) in enumerate(product(
@@ -78,7 +78,7 @@ def get_symmetric_pairwise_exp_params(env_name: str,
     )):
         exp_params = ExpParams(
             exp_id=exp_id_init+i,
-            env_name=env_name,
+            env_id=env_id,
             policy_ids=policies,
             seed=init_seed+exp_seed,
             num_episodes=num_episodes,
@@ -100,7 +100,7 @@ def get_asymmetric_pairwise_exp_parser() -> argparse.ArgumentParser:
     """
     parser = get_exp_parser()
     parser.add_argument(
-        "--env_name", type=str,
+        "--env_id", type=str,
         help="Name of the environment to run experiment in."
     )
     parser.add_argument(
@@ -135,7 +135,7 @@ def get_asymmetric_pairwise_exp_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_asymmetric_pairwise_exp_params(env_name: str,
+def get_asymmetric_pairwise_exp_params(env_id: str,
                                        policy_ids: Optional[
                                            Sequence[Sequence[str]]
                                        ],
@@ -153,13 +153,13 @@ def get_asymmetric_pairwise_exp_params(env_name: str,
     - Requires a list of policy_ids for each agent in the environment
     - Will create an experiment for every possible pairing of policy ids.
     """
-    env = posggym.make(env_name)
+    env = posggym.make(env_id)
     assert not env.is_symmetric
 
     if policy_ids is None:
         from posggym_agents.agents.registration import registry
         policy_ids = [[] for _ in range(env.n_agents)]
-        for spec in registry.all_for_env(env_name):
+        for spec in registry.all_for_env(env_id):
             valid_agent_ids = spec.valid_agent_ids
             if not valid_agent_ids:
                 # valied for all agents
@@ -176,7 +176,7 @@ def get_asymmetric_pairwise_exp_params(env_name: str,
     )):
         exp_params = ExpParams(
             exp_id=exp_id_init+i,
-            env_name=env_name,
+            env_id=env_id,
             policy_ids=policies,
             seed=init_seed+exp_seed,
             num_episodes=num_episodes,

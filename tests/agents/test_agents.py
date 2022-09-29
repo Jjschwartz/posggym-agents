@@ -8,23 +8,23 @@ from posggym_agents.agents.registration import PolicySpec
 from tests.agents.spec_list import spec_list
 
 
-def _has_prefix(spec: PolicySpec, env_name_prefix: str):
-    return spec.id.startswith(env_name_prefix)
+def _has_prefix(spec: PolicySpec, env_id_prefix: str):
+    return spec.id.startswith(env_id_prefix)
 
 
 @pytest.mark.parametrize("spec", spec_list)
-def test_policy(spec: PolicySpec, env_name_prefix: str):
+def test_policy(spec: PolicySpec, env_id_prefix: str):
     """Run reset and two test steps for each registered policy """
-    if env_name_prefix is not None and not _has_prefix(spec, env_name_prefix):
+    if env_id_prefix is not None and not _has_prefix(spec, env_id_prefix):
         return
 
     # Capture warnings
     with pytest.warns(None) as warnings:
-        if spec.env_name is None:
+        if spec.env_id is None:
             # policy is generic so just test on a standard env
             env = posggym.make("Driving7x7RoundAbout-n2-v0")
         else:
-            env = posggym.make(spec.env_name)
+            env = posggym.make(spec.env_id)
 
         if spec.valid_agent_ids:
             test_agent_id = spec.valid_agent_ids[0]

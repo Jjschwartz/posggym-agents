@@ -30,7 +30,7 @@ def get_train_sp_exp_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "env_name", type=str,
+        "env_id", type=str,
         help="Name of the environment to train on."
     )
     parser.add_argument(
@@ -72,7 +72,7 @@ def get_sp_igraph(env: RllibMultiAgentEnv,
     return igraph
 
 
-def get_symmetric_sp_trainer(env_name: str,
+def get_symmetric_sp_trainer(env_id: str,
                              env: RllibMultiAgentEnv,
                              igraph: InteractionGraph,
                              seed: Optional[int],
@@ -96,11 +96,11 @@ def get_symmetric_sp_trainer(env_name: str,
 
     if logger_creator is None:
         logger_creator = standard_logger_creator(
-            env_name, "sp", seed, train_policy_id
+            env_id, "sp", seed, train_policy_id
         )
 
     trainer = get_remote_trainer(
-        env_name,
+        env_id,
         trainer_class=CustomPPOTrainer,
         policies=policy_spec_map,
         policy_mapping_fn=policy_mapping_fn,
@@ -123,7 +123,7 @@ def get_symmetric_sp_trainer(env_name: str,
     return trainer_map
 
 
-def get_asymmetric_sp_trainer(env_name: str,
+def get_asymmetric_sp_trainer(env_id: str,
                               env: RllibMultiAgentEnv,
                               igraph: InteractionGraph,
                               seed: Optional[int],
@@ -160,11 +160,11 @@ def get_asymmetric_sp_trainer(env_name: str,
 
         if logger_creator is None:
             logger_creator = standard_logger_creator(
-                env_name, "sp", seed, train_policy_id
+                env_id, "sp", seed, train_policy_id
             )
 
         trainer = get_remote_trainer(
-            env_name,
+            env_id,
             trainer_class=CustomPPOTrainer,
             policies=policy_spec_map,
             policy_mapping_fn=policy_mapping_fn,
@@ -186,7 +186,7 @@ def get_asymmetric_sp_trainer(env_name: str,
     return trainer_map
 
 
-def get_sp_igraph_and_trainer(env_name: str,
+def get_sp_igraph_and_trainer(env_id: str,
                               env: RllibMultiAgentEnv,
                               seed: Optional[int],
                               trainer_config: Dict[str, Any],
@@ -198,7 +198,7 @@ def get_sp_igraph_and_trainer(env_name: str,
     igraph = get_sp_igraph(env, seed)
     if igraph.is_symmetric:
         trainer_map = get_symmetric_sp_trainer(
-            env_name,
+            env_id,
             env,
             igraph,
             seed,
@@ -209,7 +209,7 @@ def get_sp_igraph_and_trainer(env_name: str,
         )
     else:
         trainer_map = get_asymmetric_sp_trainer(
-            env_name,
+            env_id,
             env,
             igraph,
             seed,
@@ -221,7 +221,7 @@ def get_sp_igraph_and_trainer(env_name: str,
     return igraph, trainer_map
 
 
-def train_sp_policy(env_name: str,
+def train_sp_policy(env_id: str,
                     seed: Optional[int],
                     trainer_config: Dict[str, Any],
                     num_workers: int,
@@ -233,7 +233,7 @@ def train_sp_policy(env_name: str,
     assert "env_config" in trainer_config
 
     ray.init()
-    register_env(env_name, posggym_registered_env_creator)
+    register_env(env_id, posggym_registered_env_creator)
     env = posggym_registered_env_creator(trainer_config["env_config"])
 
     num_gpus_per_trainer = num_gpus
@@ -242,7 +242,7 @@ def train_sp_policy(env_name: str,
         num_gpus_per_trainer = num_gpus / len(env.get_agent_ids())
 
     igraph, trainer_map = get_sp_igraph_and_trainer(
-        env_name,
+        env_id,
         env,
         seed,
         trainer_config=trainer_config,
@@ -256,11 +256,11 @@ def train_sp_policy(env_name: str,
 
     if save_policy:
         print("== Exporting Graph ==")
-        parent_dir = os.path.join(BASE_RESULTS_DIR, env_name, "policies")
+        parent_dir = os.path.join(BASE_RESULTS_DIR, env_id, "policies")
         if not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
 
-        save_dir = f"train_sp_{env_name}_seed{seed}"
+        save_dir = f"train_sp_{env_id}_seed{seed}"
         export_dir = export_trainers_to_file(
             parent_dir,
             igraph,

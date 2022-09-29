@@ -31,7 +31,7 @@ def get_train_klr_exp_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "env_name", type=str,
+        "env_id", type=str,
         help="Name of the environment to train on."
     )
     parser.add_argument(
@@ -96,7 +96,7 @@ def get_klr_igraph(env: RllibMultiAgentEnv,
     return igraph
 
 
-def get_symmetric_klr_trainer(env_name: str,
+def get_symmetric_klr_trainer(env_id: str,
                               env: RllibMultiAgentEnv,
                               igraph: InteractionGraph,
                               seed: Optional[int],
@@ -128,7 +128,7 @@ def get_symmetric_klr_trainer(env_name: str,
 
         if logger_creator is None:
             pi_logger_creator = standard_logger_creator(
-                env_name, "klr", seed, train_policy_id
+                env_id, "klr", seed, train_policy_id
             )
 
         train_policy_spec = ppo_policy_spec
@@ -141,7 +141,7 @@ def get_symmetric_klr_trainer(env_name: str,
         if run_serially:
             print("Running serially")
             trainer_k = get_trainer(
-                env_name,
+                env_id,
                 trainer_class=CustomPPOTrainer,
                 policies=policy_spec_map,
                 policy_mapping_fn=policy_mapping_fn,
@@ -152,7 +152,7 @@ def get_symmetric_klr_trainer(env_name: str,
             trainer_k_weights = trainer_k.get_weights([train_policy_id])
         else:
             trainer_k = get_remote_trainer(
-                env_name,
+                env_id,
                 trainer_class=CustomPPOTrainer,
                 policies=policy_spec_map,
                 policy_mapping_fn=policy_mapping_fn,
@@ -172,7 +172,7 @@ def get_symmetric_klr_trainer(env_name: str,
     return trainer_map
 
 
-def get_asymmetric_klr_trainer(env_name: str,
+def get_asymmetric_klr_trainer(env_id: str,
                                env: RllibMultiAgentEnv,
                                igraph: InteractionGraph,
                                seed: Optional[int],
@@ -223,7 +223,7 @@ def get_asymmetric_klr_trainer(env_name: str,
 
             if logger_creator is None:
                 pi_logger_creator = standard_logger_creator(
-                    env_name, "klr", seed, train_policy_id
+                    env_id, "klr", seed, train_policy_id
                 )
 
             train_policy_spec = agent_ppo_policy_specs[agent_id]
@@ -239,7 +239,7 @@ def get_asymmetric_klr_trainer(env_name: str,
             if run_serially:
                 print("Running serially")
                 trainer_k = get_trainer(
-                    env_name,
+                    env_id,
                     trainer_class=CustomPPOTrainer,
                     policies=policy_spec_map,
                     policy_mapping_fn=policy_mapping_fn,
@@ -250,7 +250,7 @@ def get_asymmetric_klr_trainer(env_name: str,
                 trainer_k_weights = trainer_k.get_weights([train_policy_id])
             else:
                 trainer_k = get_remote_trainer(
-                    env_name,
+                    env_id,
                     trainer_class=CustomPPOTrainer,
                     policies=policy_spec_map,
                     policy_mapping_fn=policy_mapping_fn,
@@ -271,7 +271,7 @@ def get_asymmetric_klr_trainer(env_name: str,
     return trainer_map
 
 
-def get_klr_igraph_and_trainer(env_name: str,
+def get_klr_igraph_and_trainer(env_id: str,
                                env: RllibMultiAgentEnv,
                                k: int,
                                best_response: bool,
@@ -286,7 +286,7 @@ def get_klr_igraph_and_trainer(env_name: str,
     igraph = get_klr_igraph(env, k, best_response, seed)
     if igraph.is_symmetric:
         trainer_map = get_symmetric_klr_trainer(
-            env_name,
+            env_id,
             env,
             igraph,
             seed,
@@ -298,7 +298,7 @@ def get_klr_igraph_and_trainer(env_name: str,
         )
     else:
         trainer_map = get_asymmetric_klr_trainer(
-            env_name,
+            env_id,
             env,
             igraph,
             seed,
@@ -311,7 +311,7 @@ def get_klr_igraph_and_trainer(env_name: str,
     return igraph, trainer_map
 
 
-def train_klr_policy(env_name: str,
+def train_klr_policy(env_id: str,
                      k: int,
                      best_response: bool,
                      seed: Optional[int],
@@ -327,7 +327,7 @@ def train_klr_policy(env_name: str,
     assert "env_config" in trainer_config
 
     ray.init()
-    register_env(env_name, posggym_registered_env_creator)
+    register_env(env_id, posggym_registered_env_creator)
     env = posggym_registered_env_creator(trainer_config["env_config"])
 
     num_trainers = k+2 if best_response else k+1
@@ -337,7 +337,7 @@ def train_klr_policy(env_name: str,
     num_gpus_per_trainer = num_gpus / num_trainers
 
     igraph, trainer_map = get_klr_igraph_and_trainer(
-        env_name,
+        env_id,
         env,
         k,
         best_response,
@@ -354,11 +354,11 @@ def train_klr_policy(env_name: str,
 
     if save_policies:
         print("== Exporting Graph ==")
-        parent_dir = os.path.join(BASE_RESULTS_DIR, env_name, "policies")
+        parent_dir = os.path.join(BASE_RESULTS_DIR, env_id, "policies")
         if not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
 
-        save_dir = f"train_klr_{env_name}_seed{seed}_k{k}"
+        save_dir = f"train_klr_{env_id}_seed{seed}_k{k}"
         if best_response:
             save_dir += "_br"
         export_dir = export_trainers_to_file(

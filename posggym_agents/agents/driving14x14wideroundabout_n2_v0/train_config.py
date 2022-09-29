@@ -1,13 +1,13 @@
 import copy
 
 
-def get_rl_training_config(env_name: str, seed: int, log_level: str):
+def get_rl_training_config(env_id: str, seed: int, log_level: str):
     """Get the Rllib agent config for an agent being trained."""
     config = copy.deepcopy(RL_TRAINER_CONFIG)
     config["log_level"] = log_level
     config["seed"] = seed
     config["env_config"] = {
-        "env_name": env_name,
+        "env_name": env_id,
         "seed": seed,
         "flatten_obs": True
     }
