@@ -160,9 +160,21 @@ class PolicyRegistry:
             logger.warn(f"Overriding policy {spec.id}")
         self.policy_specs[policy_spec.id] = policy_spec
 
-    def all_for_env(self, env_id: str) -> List[PolicySpec]:
-        """Get all PolicySpecs that are associated with given environment."""
-        return [pi_spec for pi_spec in self.all() if pi_spec.env_id == env_id]
+    def all_for_env(self,
+                    env_id: str,
+                    include_generic_policies: bool = True) -> List[PolicySpec]:
+        """Get all PolicySpecs that are associated with given environment.
+
+        If `include_generic_policies` is True then will also return policies
+        that are valid for all environments (e.g. the random-v0 policy)
+        """
+        return [
+            pi_spec for pi_spec in self.all()
+            if (
+                pi_spec.env_id == env_id
+                or (include_generic_policies and pi_spec.env_id is None)
+            )
+        ]
 
 
 # Global registry that all implemented policies are added too

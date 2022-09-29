@@ -69,7 +69,7 @@ def get_symmetric_pairwise_exp_params(env_id: str,
 
     if policy_ids is None:
         from posggym_agents.agents.registration import registry
-        policy_ids = [spec.id for spec in registry.all_for_env(env_id)]
+        policy_ids = [spec.id for spec in registry.all_for_env(env_id, True)]
 
     exp_params_list = []
     for i, (exp_seed, policies) in enumerate(product(
@@ -159,7 +159,8 @@ def get_asymmetric_pairwise_exp_params(env_id: str,
     if policy_ids is None:
         from posggym_agents.agents.registration import registry
         policy_ids = [[] for _ in range(env.n_agents)]
-        for spec in registry.all_for_env(env_id):
+        policy_specs = registry.all_for_env(env_id, True)
+        for spec in policy_specs:
             valid_agent_ids = spec.valid_agent_ids
             if not valid_agent_ids:
                 # valied for all agents
