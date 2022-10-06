@@ -1,8 +1,7 @@
-
 from posggym.envs.registration import registry
 from posggym_agents.agents.registration import PolicySpec
 
-from posggym_agents.agents.pursuit_evasion.shortest_path import PESPPolicy
+from posggym_agents.agents.pursuitevasion.shortest_path import PESPPolicy
 
 
 # List of policy specs for Policy Evasion env
