@@ -6,7 +6,7 @@ from posggym_agents.rllib import get_train_sp_exp_parser, train_sp_policy
 if __name__ == "__main__":
     parser = get_train_sp_exp_parser()
     parser.add_argument(
-        "--config", type=str,
+        "--config", type=str, required=True,
         help=(
             "Module path to python file containing training config (e.g. "
             "posggym_agents.agents.driving7x7roundabout_n2_v0.train_config)."

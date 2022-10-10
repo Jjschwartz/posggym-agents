@@ -138,7 +138,11 @@ class PolicyRegistry:
 
     def spec(self, id: str) -> PolicySpec:
         """Get PolicySpec with given ID."""
-        match = POLICY_ID_RE.search(id)
+        try:
+            match = POLICY_ID_RE.search(id)
+        except TypeError as ex:
+            raise TypeError(f"{ex}: {id=}")
+
         if not match:
             raise error.Error(
                 "Attempted to look up malformed policy ID: "
