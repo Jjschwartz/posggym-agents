@@ -11,6 +11,10 @@ from posggym_agents.agents import lbf
 from posggym_agents.agents import pursuitevasion
 from posggym_agents.agents import pursuitevasion8x8_v0
 from posggym_agents.agents import pursuitevasion16x16_v0
+from posggym_agents.agents import predatorprey10x10_P2_p3_s2_coop_v0
+from posggym_agents.agents import predatorprey10x10_P3_p3_s2_coop_v0
+# waiting for policies
+# from posggym_agents.agents import predatorprey10x10_P4_p3_s2_coop_v0
 
 
 # Generic Random Policies
@@ -51,3 +55,14 @@ for policy_spec in pursuitevasion8x8_v0.POLICY_SPECS.values():
 
 for policy_spec in pursuitevasion16x16_v0.POLICY_SPECS.values():
     register_spec(policy_spec)
+
+# PredatorPrey
+# ------------
+for policy_spec in predatorprey10x10_P2_p3_s2_coop_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+for policy_spec in predatorprey10x10_P3_p3_s2_coop_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+# for policy_spec in predatorprey10x10_P4_p3_s2_coop_v0.POLICY_SPECS.values():
+#    register_spec(policy_spec)
