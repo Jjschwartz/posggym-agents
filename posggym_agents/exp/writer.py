@@ -62,13 +62,13 @@ def compile_result_files(save_dir: str,
     for df_i in dfs[1:]:
         concat_df = do_concat_df(concat_df, df_i)
 
-    concat_df.to_csv(concat_resultspath)
+    concat_df.to_csv(concat_resultspath, index=False)
 
     if extra_output_dir:
         extra_results_filepath = os.path.join(
             extra_output_dir, COMPILED_RESULTS_FNAME
         )
-        concat_df.to_csv(extra_results_filepath)
+        concat_df.to_csv(extra_results_filepath, index=False)
 
     return concat_resultspath
 
