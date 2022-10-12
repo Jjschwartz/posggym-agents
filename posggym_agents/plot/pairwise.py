@@ -27,8 +27,7 @@ def get_pairwise_values(plot_df,
 
     plot_df = plot_df[plot_df[coplayer_policy_key].isin(coplayer_policies)]
     gb = plot_df.groupby([policy_key, coplayer_policy_key])
-
-    pw_values = np.zeros((len(policies), len(coplayer_policies)))
+    pw_values = np.full((len(policies), len(coplayer_policies)), np.nan)
     for name, group in gb:
         (row_policy, col_policy) = name
         row_policy_idx = policies.index(row_policy)

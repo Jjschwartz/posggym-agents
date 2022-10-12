@@ -78,6 +78,36 @@ def add_df_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([df_0, df_1]).reset_index(drop=True)
 
 
+def add_df_multiple_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
+    """Add co-player policy ID to dataframe for envs with > 2 agents.
+
+    Adds a new column for each agent in the environment:
+
+      coplayer_policy_id_0, coplayer_policy_id_1, ..., coplayer_policy_id_N
+
+    Each column contains the policy_id of the agent with corresponding ID for
+    the given experiment. This included the row agent so
+    if the row["agent_id"] = i
+    then row["coplayer_policy_id_i"] = row["policy_id"]
+
+    """
+    # disable warning
+    pd.options.mode.chained_assignment = None
+
+    agent_ids = df["agent_id"].unique().tolist()
+    agent_ids.sort()
+
+    dfs = [df[df["agent_id"] == i] for i in agent_ids]
+    for i, df_i in zip(agent_ids, dfs):
+        for j, df_j in zip(agent_ids, dfs):
+            df_i[f"coplayer_policy_id_{j}"] = df_i["exp_id"].map(
+                df_j.set_index("exp_id")["policy_id"].to_dict()
+            )
+    # enable warning
+    pd.options.mode.chained_assignment = 'warn'
+    return pd.concat(dfs).reset_index(drop=True)
+
+
 def import_results(result_file: str,
                    columns_to_drop: Optional[List[str]] = None,
                    clean_policy_id: bool = True,
@@ -96,7 +126,10 @@ def import_results(result_file: str,
         df = clean_df_policy_ids(df)
 
     if add_coplayer_policy_id:
-        df = add_df_coplayer_policy_id(df)
+        if len(df["agent_id"].unique().tolist()) == 2:
+            df = add_df_coplayer_policy_id(df)
+        else:
+            df = add_df_multiple_coplayer_policy_id(df)
 
     return df
 
