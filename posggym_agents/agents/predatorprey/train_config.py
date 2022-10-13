@@ -49,25 +49,25 @@ RL_TRAINER_CONFIG = {
 
     # == Trainer process and PPO Config ==
     # ref: https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#ppo
-    "gamma": 0.99,
+    "gamma": 0.999,
     "use_critic": True,
     "use_gae": True,
-    "lambda": 0.9,
+    "lambda": 0.95,
     "kl_coeff": 0.2,
     # Size of batches collected from each worker.
     # this is automatically adjusted to = train_batch_size /  num_workers
-    "rollout_fragment_length": 200,
+    "rollout_fragment_length": 128,
     # Number of timesteps collected for each SGD round. This defines the size
     # of each SGD epoch.
     "train_batch_size": 2048,
     # Total SGD batch size across all devices for SGD. This defines the
     # minibatch size within each epoch.
-    "sgd_minibatch_size": 256,
+    "sgd_minibatch_size": 512,
     # Whether to shuffle sequences in the batch when training (recommended).
     "shuffle_sequences": True,
     # Number of SGD iterations in each outer loop (i.e., number of epochs to
     # execute per train batch).
-    "num_sgd_iter": 10,
+    "num_sgd_iter": 2,
     # Stepsize of SGD.
     "lr": 0.0003,
     # Learning rate schedule.
@@ -101,12 +101,12 @@ RL_TRAINER_CONFIG = {
         # Whether to feed r_{t-1} to LSTM.
         "lstm_use_prev_reward": False,
     },
-    "entropy_coeff": 0.01,
+    "entropy_coeff": 0.001,
     "entropy_coeff_schedule": None,
-    "clip_param": 0.3,
+    "clip_param": 0.2,
     # max return is 1.0 so clip as such
     "vf_clip_param": 1.0,
-    "grad_clip": None,
+    "grad_clip": 5.0,
     "kl_target": 0.01,
     # "trancate_episodes" or "complete_episodes"
     "batch_mode": "truncate_episodes",
