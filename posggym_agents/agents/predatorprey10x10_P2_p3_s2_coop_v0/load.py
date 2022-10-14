@@ -47,7 +47,7 @@ def load_rllib_policy_spec(id: str, policy_dir: str) -> PolicySpec:
 
 
 # Add SP policies
-for seed in range(3):
+for seed in range(5):
     parent_dir_name = f"sp_seed{seed}"
     policy_dir = osp.join(BASE_AGENT_DIR, parent_dir_name, "None", "pi_SP")
 
