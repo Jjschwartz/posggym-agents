@@ -1,0 +1,73 @@
+# Package ######################################################################
+
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "posggym-agents"
+description = "A collection of agents and agent training code for posggym."
+readme = "README.md"
+requires-python = ">= 3.8"
+authors = [{ name = "Jonathon Schwartz", email = "jonathon.schwartz@anu.edu.au" }]
+license = { text = "MIT License" }
+keywords = ["reinforcement learning", "games", "RL", "AI", "planning", "posg"]
+classifiers = [
+	# change to `5 - Production/Stable` maybe one day
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+dependencies = [
+	"posggym==0.1.0",
+	"prettytable >=3.6.0",
+    "typing-extensions >=4.3.0",
+	"torch >=1.11.0",
+	"ray[rllib]==1.12"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# Update dependencies in `all` if any are added or removed
+all = [
+	# All dependencies above
+	# NOTE: No need to manually remove the duplicates, setuptools automatically does that.
+]
+testing = ["pytest >=7.2"]
+
+[project.urls]
+Homepage = "https://github.com/Jjschwartz/posggym-agents"
+Repository = "https://github.com/Jjschwartz/posggym-agents"
+Documentation = "https://github.com/Jjschwartz/posggym-agents"
+"Bug Report" = "https://github.com/Jjschwartz/posggym-agents/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["posggym_agents", "posggym_agents.*"]
+
+[tool.setuptools.package-data]
+posggym_agents = [
+    "py.typed",
+]
+
+# Linters and Test tools #######################################################
+[tool.black]
+safe = true
+line-length = 88
+
+[tool.isort]
+atomic = true
+profile = "black"
+src_paths = ["posggym_agents", "tests"]
+extra_standard_library = ["typing_extensions"]
+indent = 4
+lines_after_imports = 2
+multi_line_output = 3
