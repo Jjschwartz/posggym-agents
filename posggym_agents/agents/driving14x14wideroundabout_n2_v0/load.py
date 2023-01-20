@@ -10,7 +10,7 @@ from posggym_agents.agents.registration import PolicySpec
 from posggym_agents.rllib import PPORllibPolicy, get_flatten_preprocessor
 
 
-ENV_NAME = "Driving14x14WideRoundAbout-n2-v0"
+ENV_ID = "Driving14x14WideRoundAbout-n2-v0"
 BASE_DIR = osp.dirname(osp.abspath(__file__))
 BASE_AGENT_DIR = osp.join(BASE_DIR, "agents")
 
@@ -48,5 +48,5 @@ for policy_file in os.listdir(BASE_AGENT_DIR):
     # remove ".pkl"
     policy_id = policy_file.split(".")[0]
     # unique ID used in posggym-agents global registry
-    id = f"{ENV_NAME}/{policy_id}-v0"
+    id = f"{ENV_ID}/{policy_id}-v0"
     POLICY_SPECS[id] = load_rllib_policy_spec(id, policy_file)
