@@ -1,17 +1,22 @@
+from __future__ import annotations
+
 import abc
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 import posggym.model as M
 from posggym.utils.history import AgentHistory
 
 
+if TYPE_CHECKING:
+    from posggym_agents.agent.registration import PolicySpec
+
 # Convenient type definitions
 PolicyID = str
-ActionDist = Dict[M.Action, float]
+ActionDist = Dict[M.ActType, float]
 PolicyHiddenState = Dict[str, Any]
 
 
-class BasePolicy(abc.ABC):
+class Policy(abc.ABC):
     """Abstract policy interface.
 
     Subclasses must implement:
@@ -33,19 +38,16 @@ class BasePolicy(abc.ABC):
 
     # PolicySpec used to generate policy instance
     # This is set when policy is made using make function
-    spec = None
+    spec: PolicySpec | None = None
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 agent_id: M.AgentID,
-                 policy_id: str):
+    def __init__(self, model: M.POSGModel, agent_id: M.AgentID, policy_id: PolicyID):
         self.model = model
         self.agent_id = agent_id
         self.policy_id = policy_id
         self.history = AgentHistory.get_init_history()
         self._last_action = None
 
-    def step(self, obs: M.Observation) -> M.Action:
+    def step(self, obs: M.ObsType) -> M.ActType:
         """Execute a single policy step.
 
         This involves:
@@ -57,10 +59,10 @@ class BasePolicy(abc.ABC):
         return self._last_action
 
     @abc.abstractmethod
-    def get_action(self) -> M.Action:
+    def get_action(self) -> M.ActType:
         """Get action given agent's current history."""
 
-    def get_action_by_history(self, history: AgentHistory) -> M.Action:
+    def get_action_by_history(self, history: AgentHistory) -> M.ActType:
         """Get action given history, leaving state of policy unchanged."""
         current_history = self.history
         self.reset_history(history)
@@ -69,9 +71,7 @@ class BasePolicy(abc.ABC):
         return action
 
     @abc.abstractmethod
-    def get_pi(self,
-               history: Optional[AgentHistory] = None
-               ) -> ActionDist:
+    def get_pi(self, history: Optional[AgentHistory] = None) -> ActionDist:
         """Get agent's distribution over actions for a given history.
 
         If history is None then uses current history.
@@ -83,7 +83,7 @@ class BasePolicy(abc.ABC):
             f"get_value() function not supported by {self.__class__.__name__}"
         )
 
-    def update(self, action: M.Action, obs: M.Observation) -> None:
+    def update(self, action: M.ActType, obs: M.ObsType) -> None:
         """Update policy."""
         self.history = self.history.extend(action, obs)
 
@@ -97,7 +97,7 @@ class BasePolicy(abc.ABC):
         self.history = history
 
 
-class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
+class HiddenStatePolicy(Policy, abc.ABC):
     """Abstract Hidden State policy interface.
 
     Adds additional functions for accessing and setting the internal hidden
@@ -125,53 +125,37 @@ class BaseHiddenStatePolicy(BasePolicy, abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_action_by_hidden_state(self,
-                                   hidden_state: PolicyHiddenState
-                                   ) -> M.Action:
+    def get_action_by_hidden_state(self, hidden_state: PolicyHiddenState) -> M.ActType:
         """Get action given hidden state of agent."""
 
     @abc.abstractmethod
-    def get_pi_from_hidden_state(self,
-                                 hidden_state: PolicyHiddenState
-                                 ) -> ActionDist:
+    def get_pi_from_hidden_state(self, hidden_state: PolicyHiddenState) -> ActionDist:
         """Get agent's distribution over actions for given hidden state."""
 
-    def get_value_by_hidden_state(self,
-                                  hidden_state: PolicyHiddenState) -> float:
+    def get_value_by_hidden_state(self, hidden_state: PolicyHiddenState) -> float:
         """Get a value estimate from policy's hidden state."""
         raise NotImplementedError(
             "get_value_by_hidden_state() function not supported by "
             f"{self.__class__.__name__}"
         )
 
-    def get_next_hidden_state(self,
-                              hidden_state: PolicyHiddenState,
-                              action: M.Action,
-                              obs: M.Observation
-                              ) -> PolicyHiddenState:
+    def get_next_hidden_state(
+        self, hidden_state: PolicyHiddenState, action: M.ActType, obs: M.ObsType
+    ) -> PolicyHiddenState:
         """Get next hidden state of policy."""
         if hidden_state["history"] is None:
-            next_history = AgentHistory(((action, obs), ))
+            next_history = AgentHistory(((action, obs),))
         else:
             next_history = hidden_state["history"].extend(action, obs)
-        return {
-            "history": next_history,
-            "last_action": action
-        }
+        return {"history": next_history, "last_action": action}
 
     def get_initial_hidden_state(self) -> PolicyHiddenState:
         """Get the initial hidden state of the policy."""
-        return {
-            "history": None,
-            "last_action": None
-        }
+        return {"history": None, "last_action": None}
 
     def get_hidden_state(self) -> PolicyHiddenState:
         """Get the hidden state of the policy given it's current history."""
-        return {
-            "history": self.history,
-            "last_action": self._last_action
-        }
+        return {"history": self.history, "last_action": self._last_action}
 
     def set_hidden_state(self, hidden_state: PolicyHiddenState):
         """Set the hidden state of the policy."""

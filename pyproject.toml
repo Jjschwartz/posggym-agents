@@ -30,7 +30,7 @@ dependencies = [
 	"prettytable >=3.6.0",
     "typing-extensions >=4.3.0",
 	"torch >=1.11.0",
-	"ray[rllib]==1.12"
+	"ray[rllib] >=2.0"
 ]
 dynamic = ["version"]
 
@@ -39,6 +39,7 @@ dynamic = ["version"]
 all = [
 	# All dependencies above
 	# NOTE: No need to manually remove the duplicates, setuptools automatically does that.
+
 ]
 testing = ["pytest >=7.2"]
 
@@ -56,10 +57,7 @@ include = ["posggym_agents", "posggym_agents.*"]
 
 [tool.setuptools.package-data]
 posggym_agents = [
-	"agents/*/*.json",
 	"agents/*/*.pkl",
-	"agents/*/.is_checkpoint",
-	"agents/*/checkpoint*",
     "py.typed",
 ]
 
