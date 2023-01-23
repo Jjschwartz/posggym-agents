@@ -1,1 +1,1 @@
-from posggym_agents.agents.pursuitevasion.policy_specs import POLICY_SPECS
+from posggym_agents.agents.pursuitevasion.load import POLICY_SPECS
