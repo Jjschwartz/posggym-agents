@@ -1,4 +1,3 @@
-
 def pytest_addoption(parser):   # noqa
     parser.addoption(
         "--env_id_prefix",
@@ -18,3 +17,18 @@ def pytest_generate_tests(metafunc):   # noqa
         metafunc.parametrize(
             "env_id_prefix", [metafunc.config.getoption("env_id_prefix")]
         )
+
+
+# name prefix of environments to test
+# Usage: pytest <test files> --env_name_prefix <name>
+#
+# This limits the policies to be tested to those associated with environments whose ID
+# starts with <name>.
+# Will test all registered policies if not specified.
+env_name_prefix = None
+
+
+def pytest_configure(config):
+    """Configure pytest."""
+    global env_name_prefix
+    env_name_prefix = config.getoption("--env_id_prefix")

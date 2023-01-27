@@ -1,22 +1,26 @@
+"""The Policy class defining the core API ."""
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Optional, TYPE_CHECKING
+import copy
+from typing import TYPE_CHECKING, Any, Dict, Generic, TypeVar
 
-import posggym.model as M
-from posggym.utils.history import AgentHistory
+from posggym.model import AgentID, POSGModel
 
 
 if TYPE_CHECKING:
     from posggym_agents.agent.registration import PolicySpec
 
+
+ActType = TypeVar("ActType")
+ObsType = TypeVar("ObsType")
+
 # Convenient type definitions
 PolicyID = str
-ActionDist = Dict[M.ActType, float]
-PolicyHiddenState = Dict[str, Any]
+PolicyState = Dict[str, Any]
 
 
-class Policy(abc.ABC):
+class Policy(abc.ABC, Generic[ActType, ObsType]):
     """Abstract policy interface.
 
     Subclasses must implement:
@@ -40,124 +44,133 @@ class Policy(abc.ABC):
     # This is set when policy is made using make function
     spec: PolicySpec | None = None
 
-    def __init__(self, model: M.POSGModel, agent_id: M.AgentID, policy_id: PolicyID):
+    def __init__(self, model: POSGModel, agent_id: AgentID, policy_id: PolicyID):
         self.model = model
         self.agent_id = agent_id
         self.policy_id = policy_id
-        self.history = AgentHistory.get_init_history()
-        self._last_action = None
+        self._state = self.get_initial_state()
 
-    def step(self, obs: M.ObsType) -> M.ActType:
-        """Execute a single policy step.
+    def step(self, obs: ObsType | None) -> ActType:
+        """Get the next action from the policy.
 
-        This involves:
-        1. a updating policy with last action and given observation
-        2. next action using updated policy
+        This function updates the policy's current internal state and computes the
+        next action.
+
+        Arguments
+        ---------
+        obs: the latest observation. May be None if the environment is action first and
+            it's the first step.
+
+        Returns
+        -------
+        action: the next action
+
         """
-        self.update(self._last_action, obs)
-        self._last_action = self.get_action()
-        return self._last_action
-
-    @abc.abstractmethod
-    def get_action(self) -> M.ActType:
-        """Get action given agent's current history."""
-
-    def get_action_by_history(self, history: AgentHistory) -> M.ActType:
-        """Get action given history, leaving state of policy unchanged."""
-        current_history = self.history
-        self.reset_history(history)
-        action = self.get_action()
-        self.reset_history(current_history)
+        self._state = self.get_next_state(obs, self._state)
+        action = self.sample_action(self._state)
+        self._state["last_action"] = action
         return action
 
-    @abc.abstractmethod
-    def get_pi(self, history: Optional[AgentHistory] = None) -> ActionDist:
-        """Get agent's distribution over actions for a given history.
+    def reset(self, *, seed: int | None = None):
+        """Reset the policy to it's initial state.
 
-        If history is None then uses current history.
+        This resets the policy's internal state, and should be called at the start of
+        each episode.
+
+        TODO: Add support for seeding
+
+        """
+        self._state = self.get_initial_state()
+
+    def get_initial_state(self) -> PolicyState:
+        """Get the policy's initial state.
+
+        Subclasses that utilize custom internal states (e.g. RNN policies) should
+        override this method, but should first call `super.().get_initial_state()` to
+        get the base policy state can then be extended.
+
+        Returns
+        -------
+        initial_state: initial policy state
+
+        """
+        return {"last_action": None}
+
+    @abc.abstractmethod
+    def get_next_state(
+        self,
+        obs: ObsType | None,
+        state: PolicyState,
+    ) -> PolicyState:
+        """Get the next policy state.
+
+        Subclasses that utilize custom internal states (e.g. RNN policies) should
+        override this method, but should first call `super.().get_next_state()` to get
+        the base policy state can then be extended.
+
+        Arguments
+        ---------
+        action: the last action performed, may be None if this is the first update
+        obs: the observation recieved, may be None if this is the first update and
+            the environment is action first.
+        state: the policy's state before action was performed and obs recieved
+
+        Returns
+        -------
+        next_state: the next policy state
+
         """
 
-    def get_value(self, history: Optional[AgentHistory]) -> float:
+    @abc.abstractmethod
+    def sample_action(self, state: PolicyState) -> ActType:
+        """Get action given agent's current state."""
+
+    @abc.abstractmethod
+    def get_pi(self, state: PolicyState) -> Dict[ActType, float]:
+        """Get policy's distribution over actions for a given history.
+
+        If history is None then should use current history.
+        """
+
+    @abc.abstractmethod
+    def get_value(self, state: PolicyState) -> float:
         """Get a value estimate of a history."""
-        raise NotImplementedError(
-            f"get_value() function not supported by {self.__class__.__name__}"
-        )
 
-    def update(self, action: M.ActType, obs: M.ObsType) -> None:
-        """Update policy."""
-        self.history = self.history.extend(action, obs)
+    def set_state(self, state: PolicyState):
+        """Set the policy's internal state.
 
-    def reset(self) -> None:
-        """Reset the policy to it's initial state."""
-        self.history = AgentHistory.get_init_history()
-        self._last_action = None
+        Subclasses that utilize custom internal states (e.g. RNN policies) may wish to
+        override this method, to set any attributes used for the by the class to store
+        policy state.
 
-    def reset_history(self, history: AgentHistory) -> None:
-        """Reset policy state based on a history."""
-        self.history = history
+        Arguments
+        ---------
+        state: the new policy state
 
+        Raises
+        ------
+        AssertionError: if new policy state is not valid.
 
-class HiddenStatePolicy(Policy, abc.ABC):
-    """Abstract Hidden State policy interface.
+        """
+        if self._state is not None and state is not None:
+            assert all(k in state for k in self._state), f"Invalid policy state {state}"
+        self._state = state
 
-    Adds additional functions for accessing and setting the internal hidden
-    state of a policy.
+    def get_state(self) -> PolicyState | None:
+        """Get the policy's current state.
 
-    Subclasses need to implement:
+        Returns
+        -------
+        state: policy's current internal state.
 
-    get_action_by_hidden_state
-    get_pi_from_hidden_state
+        """
+        if self._state is None:
+            return None
+        return copy.deepcopy(self._state)
 
-    Subclasse may wish to implement:
+    def close(self):
+        """Close policy and perform any necessary cleanup.
 
-    get_value_by_hidden_state
-
-    Additional, subclasses can and sometime should override:
-
-    get_next_hidden_state
-    get_initial_hidden_state
-    get_hidden_state
-    set_hidden_state
-
-    If overriding these methods subclasses should call super() to ensure
-    history and last_action attributes are part of the hidden state.
-
-    """
-
-    @abc.abstractmethod
-    def get_action_by_hidden_state(self, hidden_state: PolicyHiddenState) -> M.ActType:
-        """Get action given hidden state of agent."""
-
-    @abc.abstractmethod
-    def get_pi_from_hidden_state(self, hidden_state: PolicyHiddenState) -> ActionDist:
-        """Get agent's distribution over actions for given hidden state."""
-
-    def get_value_by_hidden_state(self, hidden_state: PolicyHiddenState) -> float:
-        """Get a value estimate from policy's hidden state."""
-        raise NotImplementedError(
-            "get_value_by_hidden_state() function not supported by "
-            f"{self.__class__.__name__}"
-        )
-
-    def get_next_hidden_state(
-        self, hidden_state: PolicyHiddenState, action: M.ActType, obs: M.ObsType
-    ) -> PolicyHiddenState:
-        """Get next hidden state of policy."""
-        if hidden_state["history"] is None:
-            next_history = AgentHistory(((action, obs),))
-        else:
-            next_history = hidden_state["history"].extend(action, obs)
-        return {"history": next_history, "last_action": action}
-
-    def get_initial_hidden_state(self) -> PolicyHiddenState:
-        """Get the initial hidden state of the policy."""
-        return {"history": None, "last_action": None}
-
-    def get_hidden_state(self) -> PolicyHiddenState:
-        """Get the hidden state of the policy given it's current history."""
-        return {"history": self.history, "last_action": self._last_action}
-
-    def set_hidden_state(self, hidden_state: PolicyHiddenState):
-        """Set the hidden state of the policy."""
-        self.history = hidden_state["history"]
-        self._last_action = hidden_state["last_action"]
+        Should be overriden in subclasses as necessary.
+        """
+        pass

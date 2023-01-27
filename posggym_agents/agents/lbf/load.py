@@ -1,6 +1,6 @@
 from posggym.envs.registration import registry
 
-import posggym_agents.agents.lbf.heuristic_agent as heuristic_agent
+import posggym_agents.agents.lbf.heuristic as heuristic_agent
 from posggym_agents.agents.registration import PolicySpec
 
 
@@ -8,7 +8,7 @@ from posggym_agents.agents.registration import PolicySpec
 POLICY_SPECS = []
 
 
-for env_spec in sorted(registry.all(), key=lambda x: x.id):
+for env_spec in sorted(registry.values(), key=lambda x: x.id):
     env_id = env_spec.id
     if not env_id.startswith("LevelBasedForaging") or env_id.startswith(
         "LevelBasedForaging-GridObs"
@@ -24,5 +24,10 @@ for env_spec in sorted(registry.all(), key=lambda x: x.id):
             heuristic_agent.LBFHeuristicPolicy4,
         ]
     ):
-        policy_spec = PolicySpec(f"{env_id}/heuristic{i+1}-v0", policy_class)
+        policy_spec = PolicySpec(
+            f"{env_id}/Heuristic{i+1}-v0",
+            policy_class,
+            valid_agent_ids=None,
+            nondeterministic=False
+        )
         POLICY_SPECS.append(policy_spec)

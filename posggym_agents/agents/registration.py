@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import copy
 import difflib
+import importlib
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Protocol, Tuple, Optional
+from typing import Dict, List, Protocol, Tuple
 
 import posggym.model as M
 
@@ -23,7 +24,7 @@ from posggym_agents.policy import Policy
 # env-name is group 1, policy_id is group 2, version is group 3
 POLICY_ID_RE: re.Pattern = re.compile(
     # r"^(?:[\w:-]+\/)?([\w:.-]+)-v(\d+)$")
-    r"^(?:(?P<env-id>[\w:-]+)\/)?(?:(?P<pi-name>[\w:.-]+?))(?:-v(?P<version>\d+))?$"
+    r"^(?:(?P<env_id>[\w:-]+)\/)?(?:(?P<pi_name>[\w:.-]+?))(?:-v(?P<version>\d+))?$"
 )
 
 
@@ -34,6 +35,24 @@ class PolicyEntryPoint(Protocol):
         self, model: M.POSGModel, agent_id: M.AgentID, policy_id: str, **kwargs
     ) -> Policy:
         ...
+
+
+def load(name: str) -> PolicyEntryPoint:
+    """Loads policy with name and returns a policy entry point.
+
+    Arguments
+    ---------
+    name: The policy name
+
+    Returns
+    -------
+    entry_point: Policy creation function.
+
+    """
+    mod_name, attr_name = name.split(":")
+    mod = importlib.import_module(mod_name)
+    fn = getattr(mod, attr_name)
+    return fn
 
 
 def parse_policy_id(policy_id: str) -> Tuple[str | None, str, int | None]:
@@ -61,11 +80,11 @@ def parse_policy_id(policy_id: str) -> Tuple[str | None, str, int | None]:
     match = POLICY_ID_RE.fullmatch(policy_id)
     if not match:
         raise error.Error(
-            f"Malformed environment ID: {policy_id}. (Currently all IDs must be of the "
-            "form [env-name/](policy-name)-v(version) (env-name may be optional, "
-            "depending on the policy)."
+            f"Malformed policy ID: {policy_id}. (Currently all IDs must be of the "
+            "form [env-id/](policy-name)-v(version) (env-id may be optional, "
+            "depending on the policy))."
         )
-    env_id, pi_name, version = match.group("env-id", "pi-name", "version")
+    env_id, pi_name, version = match.group("env_id", "pi_name", "version")
     if version is not None:
         version = int(version)
 
@@ -106,19 +125,31 @@ class PolicySpec:
     Arguments
     ---------
     id: The official policy ID of the agent policy
-    entry_point: The Python entrypoint for initializing an instance of the agent policy
+    entry_point: The Python entrypoint for initializing an instance of the agent policy.
+        Must be a Callable with signature matching `PolicyEntryPoint` or a string
+        defining where the entry point function can be imported
+        (e.g. module.name:Class).
     valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
         None then assumes policy can be used for any agent in the environment.
+    nondeterministic: Whether this policy is non-deterministic even after seeding.
     kwargs: Additional kwargs, if any, to pass to the agent initializing
 
     """
 
     id: str
-    entry_point: PolicyEntryPoint
-    valid_agent_ids: List[M.AgentID] | None = field(default=None)
+    entry_point: PolicyEntryPoint | str
 
-    # Environment Arguments
+    # Policy attributes
+    valid_agent_ids: List[M.AgentID] | None = field(default=None)
+    nondeterministic: bool = field(default=False)
+
+    # Policy Arguments
     kwargs: Dict = field(default_factory=dict)
+
+    # post-init attributes
+    env_id: str | None = field(init=False)
+    policy_name: str = field(init=False)
+    version: int | None = field(init=False)
 
     def __post_init__(self):
         """Extract the namespace, name and version from id.
@@ -151,22 +182,33 @@ def _check_env_id_exists(env_id: str | None):
 
 def _check_name_exists(env_id: str | None, policy_name: str):
     """Check if policy exists for given env id. If not, print helpful error message."""
-    _check_env_id_exists(env_id)
+    # check if policy_name matches a generic policy
     names = {
         spec_.policy_name.lower(): spec_.policy_name
         for spec_ in registry.values()
-        if spec_.env_id == env_id
+        if spec_.env_id is None
     }
 
     if policy_name in names.values():
         return
+    else:
+        # check env specific policies
+        _check_env_id_exists(env_id)
+        names = {
+            spec_.policy_name.lower(): spec_.policy_name
+            for spec_ in registry.values()
+            if spec_.env_id == env_id
+        }
+
+        if policy_name in names.values():
+            return
 
     suggestion = difflib.get_close_matches(policy_name.lower(), names, n=1)
-    namespace_msg = f" for env ID {env_id}" if env_id else ""
+    env_id_msg = f" for env ID {env_id}" if env_id else ""
     suggestion_msg = f"Did you mean: `{names[suggestion[0]]}`?" if suggestion else ""
 
     raise error.NameNotFound(
-        f"Policy {policy_name} doesn't exist{namespace_msg}. {suggestion_msg}"
+        f"Policy {policy_name} doesn't exist{env_id_msg}. {suggestion_msg}"
     )
 
 
@@ -328,7 +370,9 @@ def get_all_env_policies(
 
 def register(
     id: str,
-    entry_point: PolicyEntryPoint,
+    entry_point: PolicyEntryPoint | str,
+    valid_agent_ids: List[M.AgentID] | None = None,
+    nondeterministic: bool = False,
     **kwargs,
 ):
     """Register a policy with posggym-agents.
@@ -348,22 +392,24 @@ def register(
     ---------
     id: The policy id
     entry_point: The entry point for creating the policy
-    **kwargs: arbitrary keyword arguments which are passed to the policy constructor
+    valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
+        None then assumes policy can be used for any agent in the environment.
+    nondeterministic: Whether this policy is non-deterministic even after seeding.
+    kwargs: Additional kwargs, if any, to pass to the agent initializing
 
     """
     global registry
     new_spec = PolicySpec(
         id=id,
         entry_point=entry_point,
+        valid_agent_ids=valid_agent_ids,
+        nondeterministic=nondeterministic,
         **kwargs,
     )
     register_spec(new_spec, **kwargs)
 
 
-def register_spec(
-    spec: PolicySpec,
-    **kwargs,
-):
+def register_spec(spec: PolicySpec):
     """Register a policy spec with posggym-agents.
 
     The `id` parameter of the spec corresponds to the unique identifier of the policy,
@@ -380,7 +426,6 @@ def register_spec(
     Arguments
     ---------
     spec: The policy spec
-    **kwargs: arbitrary keyword arguments which are passed to the policy constructor
 
     """
     global registry
@@ -415,11 +460,20 @@ def make(
 
     """
     if isinstance(id, PolicySpec):
-        spec_: Optional[PolicySpec] = id
+        spec_: PolicySpec = id
     else:
-        spec_ = registry.get(id)
-
         env_id, policy_name, version = parse_policy_id(id)
+
+        if id not in registry:
+            generic_names = {
+                spec.policy_name for spec in registry.values() if spec.env_id is None
+            }
+            if policy_name in generic_names:
+                env_id = None
+
+        policy_id = get_policy_id(env_id, policy_name, version)
+        spec_ = registry.get(policy_id)  # type: ignore
+
         latest_version = find_highest_version(env_id, policy_name)
         if (
             version is not None
@@ -433,15 +487,16 @@ def make(
 
         if version is None and latest_version is not None:
             version = latest_version
-            new_env_id = get_policy_id(env_id, policy_name, version)
-            spec_ = registry.get(new_env_id)  # type: ignore
+            new_policy_id = get_policy_id(env_id, policy_name, version)
+            spec_ = registry.get(new_policy_id)  # type: ignore
             logger.warn(
-                f"Using the latest versioned environment `{new_env_id}` "
-                f"instead of the unversioned environment `{id}`."
+                f"Using the latest versioned policy `{new_policy_id}` "
+                f"instead of the unversioned policy `{id}`."
             )
 
-    if spec_ is None:
-        raise error.Error(f"No registered env with id: {id}")
+        if spec_ is None:
+            _check_version_exists(env_id, policy_name, version)
+            raise error.Error(f"No registered policy with id: {id}")
 
     if spec_.valid_agent_ids and agent_id not in spec_.valid_agent_ids:
         raise error.Error(
@@ -455,9 +510,10 @@ def make(
 
     if spec_.entry_point is None:
         raise error.Error(f"{spec_.id} registered but entry_point is not specified")
-    else:
-        assert callable(spec_.entry_point)
+    elif callable(spec_.entry_point):
         policy_creator = spec_.entry_point
+    else:
+        policy_creator = load(spec_.entry_point)
 
     try:
         policy = policy_creator(model, agent_id, spec_.id, **kwargs)
@@ -493,6 +549,13 @@ def spec(id: str) -> PolicySpec:
     if spec_ is None:
         env_id, policy_name, version = parse_policy_id(id)
         _check_version_exists(env_id, policy_name, version)
+
+        # No error raised so policy_name-version may be generic
+        id = get_policy_id(None, policy_name, version)
+        _check_version_exists(None, policy_name, version)
+        spec_ = registry.get(id)
+
+    if spec_ is None:
         raise error.Error(f"No registered policy with id: {id}")
     else:
         assert isinstance(spec_, PolicySpec)
@@ -524,13 +587,13 @@ def pprint_registry(
     """
     # Defaultdict to store policy names according to env_id.
     env_policies = defaultdict(lambda: [])
-    max_justify = float("-inf")
+    max_justify = 0
     for spec in _registry.values():
-        env_id, _, _ = parse_policy_id(spec.id)
+        env_id, policy_name, version = parse_policy_id(spec.id)
         if env_id is None:
             env_id = "Generic"
-        env_policies[env_id].append(spec.id)
-        max_justify = max(max_justify, len(spec.id))
+        env_policies[env_id].append(f"{policy_name}-v{version}")
+        max_justify = max(max_justify, len(f"{policy_name}-v{version}"))
 
     # Iterate through each environment and print policies alphabetically.
     return_str = ""
