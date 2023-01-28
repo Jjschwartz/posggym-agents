@@ -1,14 +1,25 @@
+"""Policy classes for wrapping Rllib policies to make them posggym-agents compatible."""
+from __future__ import annotations
+
 import abc
-from typing import Optional, List, Any, Tuple, Dict
+import pickle
+from typing import Any, Dict, List, Optional, Tuple
 
-from ray import rllib
-
+import gym
+import numpy as np
 import posggym.model as M
+from gymnasium import spaces
 from posggym.utils.history import AgentHistory
+from ray import rllib
+from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 
-import posggym_agents.policy as Pi
-
-from posggym_agents.rllib import utils
+from posggym_agents.agents.registration import PolicySpec
+from posggym_agents.policy import ActType, ObsType, Policy, PolicyID, PolicyState
+from posggym_agents.rllib.preprocessors import (
+    ObsPreprocessor,
+    get_flatten_preprocessor,
+    identity_preprocessor,
+)
 
 
 RllibHiddenState = List[Any]
@@ -19,178 +30,90 @@ _ACTION_PROB = "action_prob"
 _ACTION_LOGP = "action_logp"
 
 
-class RllibPolicy(Pi.BaseHiddenStatePolicy):
+class RllibPolicy(Policy[ActType, ObsType]):
     """A Rllib Policy.
 
-    This class essentially acts as an interface between BA-POSGMCP and an
-    Rlib Policy class (ray.rllib.policy.policy.Policy)
+    This class essentially acts as wrapper for an Rlib Policy class
+    (ray.rllib.policy.policy.Policy).
+
     """
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 agent_id: int,
-                 policy_id: str,
-                 policy: rllib.policy.policy.Policy,
-                 preprocessor: Optional[utils.ObsPreprocessor] = None):
-        super().__init__(model, agent_id, policy_id)
-
+    def __init__(
+        self,
+        model: M.POSGModel,
+        agent_id: M.AgentID,
+        policy_id: PolicyID,
+        policy: rllib.policy.policy.Policy,
+        preprocessor: Optional[ObsPreprocessor] = None,
+    ):
         self._policy = policy
         if preprocessor is None:
-            preprocessor = utils.identity_preprocessor
+            preprocessor = identity_preprocessor
         self._preprocessor = preprocessor
+        super().__init__(model, agent_id, policy_id)
 
-        self._last_action: Optional[M.Action] = None
-        self._last_obs: Optional[M.Observation] = None
-        self._last_hidden_state = self._get_initial_hidden_state()
-        self._last_pi_info: Dict[str, Any] = {}
+    def step(self, obs: ObsType | None) -> ActType:
+        self._state = self.get_next_state(obs, self._state)
+        action = self.sample_action(self._state)
+        self._state["action"] = action
+        return action
 
-    def step(self, obs: M.Observation) -> M.Action:
-        self.update(self._last_action, obs)
-        self._last_action = self.get_action()
-        return self._last_action
+    def reset(self, *, seed: int | None = None):
+        super().reset(seed=seed)
 
-    def get_action(self) -> M.Action:
-        return self._last_action
+    def get_initial_state(self) -> PolicyState:
+        state = super().get_initial_state()
+        state["last_obs"] = None
+        state["action"] = None
+        state["hidden_state"] = self._policy.get_initial_state()
+        state["last_pi_info"] = {}
+        return state
 
-    def get_action_by_history(self, history: AgentHistory) -> M.Action:
-        _, _, a_t, _ = self._unroll_history(history)
-        return a_t
+    def get_next_state(self, obs: ObsType | None, state: PolicyState) -> PolicyState:
+        action, hidden_state, pi_info = self._compute_action(
+            obs, state["hidden_state"], state["action"], explore=False
+        )
+        return {
+            "last_obs": obs,
+            "action": action,
+            "hidden_state": hidden_state,
+            "pi_info": pi_info,
+        }
 
-    def get_action_by_hidden_state(self,
-                                   hidden_state: Pi.PolicyHiddenState
-                                   ) -> M.Action:
-        return hidden_state["last_action"]
+    def sample_action(self, state: PolicyState) -> ActType:
+        return state["action"]
 
-    def get_pi(self,
-               history: Optional[AgentHistory] = None
-               ) -> Pi.ActionDist:
-        return self._get_pi_from_info(self._get_info(history))
-
-    def get_pi_from_hidden_state(self,
-                                 hidden_state: Pi.PolicyHiddenState
-                                 ) -> Pi.ActionDist:
-        return self._get_pi_from_info(hidden_state["last_pi_info"])
+    def get_pi(self, state: PolicyState) -> Dict[ActType, float]:
+        return self._get_pi_from_info(state["pi_info"])
 
     @abc.abstractmethod
-    def _get_pi_from_info(self, info: Dict[str, Any]) -> Pi.ActionDist:
-        """Get policy distribution from info dict."""
+    def _get_pi_from_info(self, info: Dict[str, Any]) -> Dict[ActType, float]:
+        """Get policy distribution from policy info output."""
 
-    def get_value(self, history: Optional[AgentHistory]) -> float:
-        return self._get_value_from_info(self._get_info(history))
-
-    def get_value_by_hidden_state(self,
-                                  hidden_state: Pi.PolicyHiddenState) -> float:
-        return self._get_value_from_info(hidden_state["last_pi_info"])
+    def get_value(self, state: PolicyState) -> float:
+        return self._get_value_from_info(state["last_pi_info"])
 
     @abc.abstractmethod
     def _get_value_from_info(self, info: Dict[str, Any]) -> float:
-        """Get value from info dict."""
+        """Get value from policy info output."""
 
-    def update(self, action: Optional[M.Action], obs: M.Observation) -> None:
-        self._last_obs = obs
-        output = self._compute_action(
-            obs, self._last_hidden_state, self._last_action, explore=False
-        )
-        self._last_action = output[0]
-        self._last_hidden_state = output[1]
-        self._last_pi_info = output[2]
-
-    def reset(self) -> None:
-        super().reset()
-        self._last_obs = None
-        self._last_hidden_state = self._get_initial_hidden_state()
-        self._last_pi_info = {}
-
-    def reset_history(self, history: AgentHistory) -> None:
-        super().reset_history(history)
-        output = self._unroll_history(history)
-        self._last_obs = output[0]
-        self._last_hidden_state = output[1]
-        self._last_action = output[2]
-        self._last_pi_info = output[3]
-
-    def get_next_hidden_state(self,
-                              hidden_state: Pi.PolicyHiddenState,
-                              action: M.Action,
-                              obs: M.Observation,
-                              explore: Optional[bool] = None
-                              ) -> Pi.PolicyHiddenState:
-        next_hidden_state = super().get_next_hidden_state(
-            hidden_state, action, obs
-        )
-        h_tm1 = hidden_state["last_hidden_state"]
-        output = self._compute_action(obs, h_tm1, action, explore=explore)
-        next_hidden_state["last_obs"] = obs
-        next_hidden_state["last_action"] = output[0]
-        next_hidden_state["last_hidden_state"] = output[1]
-        next_hidden_state["last_pi_info"] = output[2]
-        return next_hidden_state
-
-    def get_initial_hidden_state(self) -> Pi.PolicyHiddenState:
-        hidden_state = super().get_initial_hidden_state()
-        hidden_state["last_obs"] = None
-        hidden_state["last_hidden_state"] = self._get_initial_hidden_state()
-        hidden_state["last_action"] = None
-        hidden_state["last_pi_info"] = {}
-        return hidden_state
-
-    def get_hidden_state(self) -> Pi.PolicyHiddenState:
-        hidden_state = super().get_hidden_state()
-        hidden_state["last_obs"] = self._last_obs
-        hidden_state["last_hidden_state"] = self._last_hidden_state
-        hidden_state["last_pi_info"] = self._last_pi_info
-        return hidden_state
-
-    def set_hidden_state(self, hidden_state: Pi.PolicyHiddenState):
-        super().set_hidden_state(hidden_state)
-        self._last_obs = hidden_state["last_obs"]
-        self._last_hidden_state = hidden_state["last_hidden_state"]
-        self._last_pi_info = hidden_state["last_pi_info"]
-
-    def _get_initial_hidden_state(self) -> RllibHiddenState:
-        return self._policy.get_initial_state()
-
-    def _compute_action(self,
-                        obs: M.Observation,
-                        h_tm1: RllibHiddenState,
-                        last_action: M.Action,
-                        explore: Optional[bool] = None
-                        ) -> Tuple[M.Action, RllibHiddenState, Dict[str, Any]]:
+    def _compute_action(
+        self,
+        obs: ObsType | None,
+        h_tm1: RllibHiddenState,
+        last_action: ActType,
+        explore: Optional[bool] = None,
+    ) -> Tuple[ActType, RllibHiddenState, Dict[str, Any]]:
         obs = self._preprocessor(obs)
         output = self._policy.compute_single_action(
             obs, h_tm1, prev_action=last_action, explore=explore
         )
         return output
 
-    def _compute_actions(self,
-                         obs_batch: List[M.Observation],
-                         h_tm1_batch: List[RllibHiddenState],
-                         last_action_batch: List[M.Action],
-                         explore: bool = False
-                         ) -> List[
-                             Tuple[M.Action, RllibHiddenState, Dict[str, Any]]
-                         ]:
-        obs_batch = [self._preprocessor[o] for o in obs_batch]
-        output = self._policy.compute_actions(
-            obs_batch,
-            h_tm1_batch,
-            prev_action_batch=last_action_batch,
-            explore=explore
-        )
-        actions = [x[0] for x in output]
-        h_t_batch = [x[1] for x in output]
-        info_batch = [x[2] for x in output]
-        return (actions, h_t_batch, info_batch)
-
-    def _unroll_history(self,
-                        history: AgentHistory
-                        ) -> Tuple[
-                            M.Observation,
-                            RllibHiddenState,
-                            M.Action,
-                            Dict[str, Any]
-                        ]:
-        h_tm1 = self._get_initial_hidden_state()
+    def _unroll_history(
+        self, history: AgentHistory
+    ) -> Tuple[ObsType, RllibHiddenState, ActType, Dict[str, Any]]:
+        h_tm1 = self._policy.get_initial_state()
         info_tm1: Dict[str, Any] = {}
         a_tp1, o_t = history[-1]
 
@@ -205,21 +128,79 @@ class RllibPolicy(Pi.BaseHiddenStatePolicy):
         # info_t - the info returned after processing o_t, a_t, h_tm1
         return o_t, h_t, a_tp1, info_t
 
-    def _get_info(self, history: Optional[AgentHistory]) -> Dict[str, Any]:
-        if history is None:
-            return self._last_pi_info
-        _, _, _, info = self._unroll_history(history)
-        return info
 
-
-class PPORllibPolicy(RllibPolicy):
+class PPORllibPolicy(RllibPolicy[int, ObsType]):
     """A PPO Rllib Policy."""
 
     VF_PRED = "vf_preds"
 
-    def _get_pi_from_info(self, info: Dict[str, Any]) -> Pi.ActionDist:
-        probs = utils.numpy_softmax(info[_ACTION_DIST_INPUTS])
+    def _get_pi_from_info(self, info: Dict[str, Any]) -> Dict[int, float]:
+        logits = info[_ACTION_DIST_INPUTS]
+        probs = np.exp(logits) / np.sum(np.exp(logits), axis=0)
         return {a: probs[a] for a in range(len(probs))}
 
     def _get_value_from_info(self, info: Dict[str, Any]) -> float:
         return info[self.VF_PRED]
+
+
+def load_rllib_policy_spec(
+    id: str,
+    policy_file: str,
+    valid_agent_ids: List[M.AgentID] | None = None,
+    nondeterministic: bool = True,
+    **spec_kwargs
+) -> PolicySpec:
+    """Load policy spec for from policy dir.
+
+    'id' is the unique ID for the policy to be used in the global registry
+    'policy_file' is the path to the agent .pkl file.
+
+    Arguments
+    ---------
+    id: The official policy ID of the agent policy
+    entry_point: The Python entrypoint for initializing an instance of the agent policy.
+        Must be a Callable with signature matching `PolicyEntryPoint` or a string
+        defining where the entry point function can be imported
+        (e.g. module.name:Class).
+    valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
+        None then assumes policy can be used for any agent in the environment.
+    nondeterministic: Whether this policy is non-deterministic even after seeding.
+    kwargs: Additional kwargs, if any, to pass to the agent initializing
+
+    """
+
+    def _entry_point(model: M.POSGModel, agent_id: M.AgentID, policy_id: str, **kwargs):
+        preprocessor = get_flatten_preprocessor(model.observation_spaces[agent_id])
+
+        with open(policy_file, "rb") as f:
+            data = pickle.load(f)
+
+        action_space = model.action_spaces[agent_id]
+        obs_space = model.observation_spaces[agent_id]
+        flat_obs_space: spaces.Box = spaces.flatten_space(obs_space)  # type: ignore
+
+        # Need to use Open AI gym class since Rllib doesn't yet use gymnasium
+        # TODO generalize this to other kinds of spaces
+        og_gym_action_space = gym.spaces.Discrete(action_space.n)
+        og_gym_obs_space = gym.spaces.Box(
+            flat_obs_space.low,
+            flat_obs_space.high,
+            dtype=flat_obs_space.dtype,  # type: ignore
+        )
+
+        ppo_policy = PPOTorchPolicy(
+            og_gym_obs_space,
+            og_gym_action_space,
+            data["config"],
+        )
+        ppo_policy.set_state(data["state"])
+
+        return PPORllibPolicy(model, agent_id, policy_id, ppo_policy, preprocessor)
+
+    return PolicySpec(
+        id,
+        _entry_point,
+        valid_agent_ids=valid_agent_ids,
+        nondeterministic=nondeterministic,
+        **spec_kwargs
+    )

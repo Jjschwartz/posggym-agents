@@ -6,6 +6,7 @@ import copy
 from typing import TYPE_CHECKING, Any, Dict, Generic, TypeVar
 
 from posggym.model import AgentID, POSGModel
+from posggym.utils.history import AgentHistory
 
 
 if TYPE_CHECKING:
@@ -21,24 +22,7 @@ PolicyState = Dict[str, Any]
 
 
 class Policy(abc.ABC, Generic[ActType, ObsType]):
-    """Abstract policy interface.
-
-    Subclasses must implement:
-
-    get_action
-    get_pi
-
-    Subclasses may additionally wish to implement:
-
-    get_value
-
-    Subclasses will likely need to override depending on their implementation:
-
-    reset
-    update
-    reset_history
-
-    """
+    """Abstract policy interface."""
 
     # PolicySpec used to generate policy instance
     # This is set when policy is made using make function
@@ -68,7 +52,7 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         """
         self._state = self.get_next_state(obs, self._state)
         action = self.sample_action(self._state)
-        self._state["last_action"] = action
+        self._state["action"] = action
         return action
 
     def reset(self, *, seed: int | None = None):
@@ -77,7 +61,14 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         This resets the policy's internal state, and should be called at the start of
         each episode.
 
-        TODO: Add support for seeding
+        Subclasses that use random number generators (RNG) should seed override this
+        method and seed the RNG if a `seed` is provided. The expected behaviour is that
+        this is provided once by the user, just after the policy is first created
+        (before it interacts with an environment.)
+
+        Arguments
+        ---------
+        seed: seed for random number generator.
 
         """
         self._state = self.get_initial_state()
@@ -94,7 +85,7 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         initial_state: initial policy state
 
         """
-        return {"last_action": None}
+        return {"action": None}
 
     @abc.abstractmethod
     def get_next_state(
@@ -156,7 +147,7 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
             assert all(k in state for k in self._state), f"Invalid policy state {state}"
         self._state = state
 
-    def get_state(self) -> PolicyState | None:
+    def get_state(self) -> PolicyState:
         """Get the policy's current state.
 
         Returns
@@ -164,9 +155,28 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         state: policy's current internal state.
 
         """
-        if self._state is None:
-            return None
         return copy.deepcopy(self._state)
+
+    def get_state_from_history(self, history: AgentHistory) -> PolicyState:
+        """Get the policy's state given history.
+
+        This function essentially unrolls the policy using the actions and observations
+        contained in the agent history.
+
+        Arguments
+        ---------
+        history: the history
+
+        Returns
+        -------
+        state: policy state given history
+
+        """
+        state = self.get_initial_state()
+        for (a, o) in history:
+            state["action"] = a
+            state = self.get_next_state(o, state)
+        return state
 
     def close(self):
         """Close policy and perform any necessary cleanup.

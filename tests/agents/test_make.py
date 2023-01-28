@@ -11,7 +11,10 @@ import posggym
 import pytest
 
 import posggym_agents as pga
-from posggym_agents.agents.random import DiscreteFixedDistributionPolicy, RandomPolicy
+from posggym_agents.agents.random_policies import (
+    DiscreteFixedDistributionPolicy,
+    RandomPolicy,
+)
 
 
 TEST_ENV_ID = "MultiAccessBroadcastChannel-v0"

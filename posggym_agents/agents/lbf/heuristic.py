@@ -13,7 +13,7 @@ from posggym.envs.grid_world.core import Coord
 from posggym.envs.grid_world.lbf import LBFAction, LBFModel, LBFObs
 from posggym.model import AgentID
 
-from posggym_agents.policy import Policy, PolicyState
+from posggym_agents.policy import Policy, PolicyState, PolicyID
 
 
 class LBFHeuristicPolicy(Policy[LBFAction, LBFObs]):
@@ -23,7 +23,7 @@ class LBFHeuristicPolicy(Policy[LBFAction, LBFObs]):
     Concrete implementations must implement the get_action_from_obs method.
     """
 
-    def __init__(self, model: LBFModel, agent_id: AgentID, policy_id: str):
+    def __init__(self, model: LBFModel, agent_id: AgentID, policy_id: PolicyID):
         super().__init__(model, agent_id, policy_id)
         assert model.observation_mode in ("vector", "tuple")
         self._rng = random.Random()

@@ -1,12 +1,9 @@
 import random
-from typing import Callable, Any, Dict, List, Union, Optional
+from typing import Callable, Dict, List, Union, Optional
 
 from ray import rllib
 from ray.tune.registry import register_env
 from ray.rllib.agents.trainer import Trainer
-
-import numpy as np
-from gym import spaces
 
 import posggym
 import posggym.model as M
@@ -16,8 +13,6 @@ from posggym.wrappers.rllib_multi_agent_env import RllibMultiAgentEnv
 from posggym_agents import pbt
 from posggym_agents.policy import PolicyID
 
-
-ObsPreprocessor = Callable[[M.Observation], Any]
 RllibTrainerMap = Dict[M.AgentID, Dict[PolicyID, Trainer]]
 RllibPolicyMap = Dict[M.AgentID, Dict[PolicyID, rllib.policy.policy.Policy]]
 
@@ -42,21 +37,6 @@ def posggym_registered_env_creator(config):
 def register_posggym_env(env_id: str):
     """Register posggym env with Ray."""
     register_env(env_id, posggym_registered_env_creator)
-
-
-def identity_preprocessor(obs: M.Observation) -> Any:
-    """Return the observation unchanged."""
-    return obs
-
-
-def get_flatten_preprocessor(obs_space: spaces.Space) -> ObsPreprocessor:
-    """Get the preprocessor function for flattening observations."""
-
-    def flatten_preprocessor(obs: M.Observation) -> Any:
-        """Flatten the observation."""
-        return spaces.flatten(obs_space, obs)
-
-    return flatten_preprocessor
 
 
 def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
@@ -219,8 +199,3 @@ def get_symmetric_br_policy_mapping_fn(policy_br_id: str,
         )[0]
 
     return mapping_fn
-
-
-def numpy_softmax(x: np.ndarray) -> np.ndarray:
-    """Perform the softmax function on an array."""
-    return np.exp(x) / np.sum(np.exp(x), axis=0)

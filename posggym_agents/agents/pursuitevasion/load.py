@@ -1,14 +1,15 @@
+"""Load generic policies for PursuitEvasion environment."""
 from posggym.envs.registration import registry
 from posggym_agents.agents.registration import PolicySpec
 
-from posggym_agents.agents.pursuitevasion.shortest_path import PESPPolicy
+from posggym_agents.agents.pursuitevasion.shortest_path import PEShortestPathPolicy
 
 
 # List of policy specs for Policy Evasion env
 POLICY_SPECS = []
 
 
-for env_spec in sorted(registry.all(), key=lambda x: x.id):
+for env_spec in sorted(registry.values(), key=lambda x: x.id):
     env_id = env_spec.id
     if (
         not env_id.startswith("PursuitEvasion")
@@ -18,5 +19,10 @@ for env_spec in sorted(registry.all(), key=lambda x: x.id):
         # envs
         continue
 
-    policy_spec = PolicySpec(f"{env_id}/shortestpath-v0", PESPPolicy)
+    policy_spec = PolicySpec(
+        f"{env_id}/shortestpath-v0",
+        PEShortestPathPolicy,
+        valid_agent_ids=None,
+        nondeterministic=False
+    )
     POLICY_SPECS.append(policy_spec)

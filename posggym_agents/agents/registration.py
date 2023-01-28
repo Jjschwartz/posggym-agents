@@ -406,7 +406,7 @@ def register(
         nondeterministic=nondeterministic,
         **kwargs,
     )
-    register_spec(new_spec, **kwargs)
+    register_spec(new_spec)
 
 
 def register_spec(spec: PolicySpec):

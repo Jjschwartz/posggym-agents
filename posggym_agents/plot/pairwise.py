@@ -33,7 +33,9 @@ def get_pairwise_values(plot_df,
         row_policy_idx = policies.index(row_policy)
         col_policy_idx = coplayer_policies.index(col_policy)
 
-        pw_values[row_policy_idx][col_policy_idx] = group.mean()[y_key]
+        pw_values[row_policy_idx][col_policy_idx] = group.mean(
+            numeric_only=True
+        )[y_key]
 
     return pw_values, (policies, coplayer_policies)
 

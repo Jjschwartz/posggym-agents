@@ -9,4 +9,3 @@ from posggym_agents.plot.utils import filter_by
 from posggym_agents.plot.utils import filter_exps_by
 from posggym_agents.plot.utils import add_df_coplayer_policy_id
 from posggym_agents.plot.utils import import_results
-from posggym_agents.plot.utils import plot_environment

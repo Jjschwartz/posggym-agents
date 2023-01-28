@@ -2,9 +2,8 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
-import posggym
+from posggym_agents.agents.registration import parse_policy_id
 
 
 def add_95CI(df: pd.DataFrame) -> pd.DataFrame:
@@ -20,9 +19,7 @@ def add_95CI(df: pd.DataFrame) -> pd.DataFrame:
         if not col.endswith("_std"):
             continue
         prefix = col.replace("_std", "")
-        df[f"{prefix}_CI"] = df.apply(
-            lambda row: conf_int(row, prefix), axis=1
-        )
+        df[f"{prefix}_CI"] = df.apply(lambda row: conf_int(row, prefix), axis=1)
     return df
 
 
@@ -34,12 +31,7 @@ def add_outcome_proportions(df: pd.DataFrame) -> pd.DataFrame:
         total = row[col_name]
         return total / n
 
-    columns = [
-        'num_LOSS',
-        'num_DRAW',
-        'num_WIN',
-        'num_NA'
-    ]
+    columns = ["num_LOSS", "num_DRAW", "num_WIN", "num_NA"]
     new_column_names = ["prop_LOSS", "prop_DRAW", "prop_WIN", "prop_NA"]
     for col_name, new_name in zip(columns, new_column_names):
         if col_name in df.columns:
@@ -74,7 +66,7 @@ def add_df_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
         df_0.set_index("exp_id")["policy_id"].to_dict()
     )
     # enable warning
-    pd.options.mode.chained_assignment = 'warn'
+    pd.options.mode.chained_assignment = "warn"
     return pd.concat([df_0, df_1]).reset_index(drop=True)
 
 
@@ -104,26 +96,65 @@ def add_df_multiple_coplayer_policy_id(df: pd.DataFrame) -> pd.DataFrame:
                 df_j.set_index("exp_id")["policy_id"].to_dict()
             )
     # enable warning
-    pd.options.mode.chained_assignment = 'warn'
+    pd.options.mode.chained_assignment = "warn"
     return pd.concat(dfs).reset_index(drop=True)
 
 
-def import_results(result_file: str,
-                   columns_to_drop: Optional[List[str]] = None,
-                   clean_policy_id: bool = True,
-                   add_coplayer_policy_id: bool = True,
-                   ) -> pd.DataFrame:
+def add_policy_seed(df: pd.DataFrame) -> pd.DataFrame:
+    """Add policy seed to dataframe."""
+
+    def policy_seed(row, id_key):
+        _, pi_name, _ = parse_policy_id(row[id_key])
+        if "_seed" in pi_name:
+            seed_token = [t for t in pi_name.split("_") if t.startswith("seed")][0]
+            return int(seed_token.replace("seed", ""))
+        return np.nan
+
+    df["policy_seed"] = df.apply(lambda row: policy_seed(row, "policy_id"), axis=1)
+    df["coplayer_policy_seed"] = df.apply(
+        lambda row: policy_seed(row, "coplayer_policy_id"), axis=1
+    )
+    return df
+
+
+def add_policy_type(df: pd.DataFrame) -> pd.DataFrame:
+    """Add policy type to dataframe."""
+
+    def policy_type(row, id_key):
+        _, pi_name, _ = parse_policy_id(row[id_key])
+        type_tokens = [t for t in pi_name.split("_") if not t.startswith("seed")]
+        return "_".join(type_tokens)
+
+    df["policy_type"] = df.apply(lambda row: policy_type(row, "policy_id"), axis=1)
+    df["coplayer_policy_type"] = df.apply(
+        lambda row: policy_type(row, "coplayer_policy_id"), axis=1
+    )
+    return df
+
+
+def import_results(
+    result_file: str,
+    columns_to_drop: Optional[List[str]] = None,
+    clean_policy_id: bool = True,
+    add_coplayer_policy_id: bool = True,
+) -> pd.DataFrame:
     """Import experiment results."""
     df = pd.read_csv(result_file)
 
     if columns_to_drop:
-        df = df.drop(columns_to_drop, axis=1, errors='ignore')
+        df = df.drop(columns_to_drop, axis=1, errors="ignore")
 
     df = add_95CI(df)
     df = add_outcome_proportions(df)
 
     if clean_policy_id:
         df = clean_df_policy_ids(df)
+
+    if "policy_seed" not in df.columns:
+        df = add_policy_seed(df)
+
+    if "policy_type" not in df.columns:
+        df = add_policy_type(df)
 
     if add_coplayer_policy_id:
         if len(df["agent_id"].unique().tolist()) == 2:
@@ -134,8 +165,7 @@ def import_results(result_file: str,
     return df
 
 
-def filter_by(df: pd.DataFrame,
-              conds: List[Tuple[str, str, str]]) -> pd.DataFrame:
+def filter_by(df: pd.DataFrame, conds: List[Tuple[str, str, str]]) -> pd.DataFrame:
     """Filter dataframe by given conditions.
 
     Removes any rows that do not meet the conditions.
@@ -153,8 +183,7 @@ def filter_by(df: pd.DataFrame,
     return filtered_df
 
 
-def filter_exps_by(df: pd.DataFrame,
-                   conds: List[Tuple[str, str, str]]) -> pd.DataFrame:
+def filter_exps_by(df: pd.DataFrame, conds: List[Tuple[str, str, str]]) -> pd.DataFrame:
     """Filter experiments in dataframe by given conditions.
 
     Ensures all rows for an experiment where any row of that experiment
@@ -167,24 +196,3 @@ def filter_exps_by(df: pd.DataFrame,
     exp_ids = filtered_df["exp_id"].unique()
     df = df[df["exp_id"].isin(exp_ids)]
     return df
-
-
-def plot_environment(env_id: str):
-    """Display rendering of the environment."""
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 8))
-
-    # Turn off x/y axis numbering/ticks
-    ax.xaxis.set_ticks_position('none')
-    ax.yaxis.set_ticks_position('none')
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-
-    env = posggym.make(env_id)
-    env_img, _ = env.render(mode='rgb_array')
-
-    imshow_obj = ax.imshow(
-        env_img, interpolation='bilinear', origin='upper'
-    )
-    imshow_obj.set_data(env_img)
-
-    ax.set_title(env_id)
