@@ -60,3 +60,11 @@ class MissingArgument(Error):
 
 class InvalidBound(Error):
     """Raised when the clipping an array with invalid upper and/or lower bound."""
+
+
+class InvalidFile(Error):
+    """Raised when trying to access and invalid posggym-agents file."""
+
+
+class DownloadError(Error):
+    """Raised when error occured while trying to download posggym-agents file."""

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import abc
 import pickle
+import os.path as osp
 from typing import Any, Dict, List, Optional, Tuple
 
 import gym
@@ -13,6 +14,7 @@ from posggym.utils.history import AgentHistory
 from ray import rllib
 from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 
+from posggym_agents import logger
 from posggym_agents.agents.registration import PolicySpec
 from posggym_agents.policy import ActType, ObsType, Policy, PolicyID, PolicyState
 from posggym_agents.rllib.preprocessors import (
@@ -20,6 +22,7 @@ from posggym_agents.rllib.preprocessors import (
     get_flatten_preprocessor,
     identity_preprocessor,
 )
+from posggym_agents.utils.download import download_from_repo
 
 
 RllibHiddenState = List[Any]
@@ -148,29 +151,41 @@ def load_rllib_policy_spec(
     policy_file: str,
     valid_agent_ids: List[M.AgentID] | None = None,
     nondeterministic: bool = True,
-    **spec_kwargs
+    **spec_kwargs,
 ) -> PolicySpec:
     """Load policy spec for from policy dir.
 
-    'id' is the unique ID for the policy to be used in the global registry
+    'id' is the
     'policy_file' is the path to the agent .pkl file.
 
     Arguments
     ---------
-    id: The official policy ID of the agent policy
-    entry_point: The Python entrypoint for initializing an instance of the agent policy.
-        Must be a Callable with signature matching `PolicyEntryPoint` or a string
-        defining where the entry point function can be imported
-        (e.g. module.name:Class).
+    id: The official policy ID of the agent policy. This is the unique ID for the policy
+        to be used in the global registry
+    policy_file: the path the rllib policy .pkl file, containing the policy weights and
+        configuration information.
     valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
         None then assumes policy can be used for any agent in the environment.
     nondeterministic: Whether this policy is non-deterministic even after seeding.
-    kwargs: Additional kwargs, if any, to pass to the agent initializing
+    spec_kwargs: Additional kwargs, if any, to pass to the agent initializing
+
+    Returns
+    -------
+    The PolicySpec for the specified rllib policy file.
 
     """
 
     def _entry_point(model: M.POSGModel, agent_id: M.AgentID, policy_id: str, **kwargs):
         preprocessor = get_flatten_preprocessor(model.observation_spaces[agent_id])
+
+        # download policy file from repo if it doesn't already exist
+        if not osp.exists(policy_file):
+            logger.info(
+                f"Local copy of policy file for policy `{policy_id}` not found, so "
+                "downloading it from posggym-agents repo and storing local copy for "
+                "future use."
+            )
+            download_from_repo(policy_file, rewrite_existing=False)
 
         with open(policy_file, "rb") as f:
             data = pickle.load(f)
@@ -202,5 +217,5 @@ def load_rllib_policy_spec(
         _entry_point,
         valid_agent_ids=valid_agent_ids,
         nondeterministic=nondeterministic,
-        **spec_kwargs
+        **spec_kwargs,
     )

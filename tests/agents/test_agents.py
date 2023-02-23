@@ -11,9 +11,9 @@ import posggym
 import pytest
 
 import posggym_agents as pga
-from posggym_agents.rllib.policy import RllibPolicy
 from posggym_agents.agents.registration import PolicySpec
 from posggym_agents.policy import Policy
+from posggym_agents.rllib.policy import RllibPolicy
 from tests.agents.utils import (
     all_testing_initialised_policies,
     all_testing_policy_specs,
@@ -122,8 +122,8 @@ def test_policy_determinism_rollout(spec: PolicySpec):
     policy_1 = pga.make(spec, env_1.model, agent_id)
     policy_2 = pga.make(spec, env_2.model, agent_id)
 
-    policy_1.reset(seed=SEED+1)
-    policy_2.reset(seed=SEED+1)
+    policy_1.reset(seed=SEED + 1)
+    policy_2.reset(seed=SEED + 1)
 
     assert_equals(policy_1.get_state(), policy_2.get_state())
 

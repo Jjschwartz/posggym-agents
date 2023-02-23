@@ -10,7 +10,6 @@ from posggym_agents.agents import (
     lbf,
     predatorprey_10x10_P2_p3_s2_coop_v0,
     predatorprey_10x10_P3_p3_s2_coop_v0,
-    predatorprey_10x10_P4_p3_s2_coop_v0,
     predatorprey_10x10_P4_p3_s3_coop_v0,
     pursuitevasion,
     pursuitevasion_8x8_v0,
@@ -64,6 +63,18 @@ for policy_spec in lbf.POLICY_SPECS:
     register_spec(policy_spec)
 
 
+# PredatorPrey
+# ------------
+for policy_spec in predatorprey_10x10_P2_p3_s2_coop_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+for policy_spec in predatorprey_10x10_P3_p3_s2_coop_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+for policy_spec in predatorprey_10x10_P4_p3_s3_coop_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+
 # Pursuit Evasion
 # ---------------
 # Generic agents
@@ -74,19 +85,4 @@ for policy_spec in pursuitevasion_8x8_v0.POLICY_SPECS.values():
     register_spec(policy_spec)
 
 for policy_spec in pursuitevasion_16x16_v0.POLICY_SPECS.values():
-    register_spec(policy_spec)
-
-
-# PredatorPrey
-# ------------
-for policy_spec in predatorprey_10x10_P2_p3_s2_coop_v0.POLICY_SPECS.values():
-    register_spec(policy_spec)
-
-for policy_spec in predatorprey_10x10_P3_p3_s2_coop_v0.POLICY_SPECS.values():
-    register_spec(policy_spec)
-
-for policy_spec in predatorprey_10x10_P4_p3_s2_coop_v0.POLICY_SPECS.values():
-    register_spec(policy_spec)
-
-for policy_spec in predatorprey_10x10_P4_p3_s3_coop_v0.POLICY_SPECS.values():
     register_spec(policy_spec)
