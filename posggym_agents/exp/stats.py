@@ -1,34 +1,33 @@
 import abc
 import time
 from collections import ChainMap
-from typing import Mapping, Any, List, Sequence, Iterable
+from typing import Any, Dict, Iterable, List, Sequence
 
 import numpy as np
-
 import posggym
 import posggym.model as M
 
-import posggym_agents.policy as Pi
+from posggym_agents.policy import Policy
 
 
-AgentStatisticsMap = Mapping[M.AgentID, Mapping[str, Any]]
+AgentStatisticsMap = Dict[M.AgentID, Dict[str, Any]]
 
 
-def generate_episode_statistics(trackers: Iterable['Tracker']
-                                ) -> AgentStatisticsMap:
+def generate_episode_statistics(trackers: Iterable["Tracker"]) -> AgentStatisticsMap:
     """Generate episode statistics from set of trackers."""
     statistics = combine_statistics([t.get_episode() for t in trackers])
     return statistics
 
 
-def generate_statistics(trackers: Iterable['Tracker']) -> AgentStatisticsMap:
+def generate_statistics(trackers: Iterable["Tracker"]) -> AgentStatisticsMap:
     """Generate summary statistics from set of trackers."""
     statistics = combine_statistics([t.get() for t in trackers])
     return statistics
 
 
-def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
-                       ) -> AgentStatisticsMap:
+def combine_statistics(
+    statistic_maps: Sequence[AgentStatisticsMap],
+) -> AgentStatisticsMap:
     """Combine multiple Agent statistic maps into a single one."""
     agent_ids = list(statistic_maps[0].keys())
     return {
@@ -37,7 +36,7 @@ def combine_statistics(statistic_maps: Sequence[AgentStatisticsMap]
     }
 
 
-def get_default_trackers() -> List['Tracker']:
+def get_default_trackers() -> List["Tracker"]:
     """Get the default set of Trackers."""
     return [EpisodeTracker()]
 
@@ -46,13 +45,15 @@ class Tracker(abc.ABC):
     """Generic Tracker Base class."""
 
     @abc.abstractmethod
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[Pi.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[Policy],
+        episode_end: bool,
+    ):
         """Accumulates statistics for a single step."""
 
     @abc.abstractmethod
@@ -92,13 +93,15 @@ class EpisodeTracker(Tracker):
         self._steps = []
         self._outcomes = []
 
-    def step(self,
-             episode_t: int,
-             env: posggym.Env,
-             timestep: M.JointTimestep,
-             action: M.JointAction,
-             policies: Sequence[Pi.BasePolicy],
-             episode_end: bool):
+    def step(
+        self,
+        episode_t: int,
+        env: posggym.Env,
+        timestep: M.JointTimestep,
+        action: M.JointAction,
+        policies: Sequence[Policy],
+        episode_end: bool,
+    ):
         if self._num_agents is None:
             self._num_agents = env.n_agents
             self._current_episode_returns = np.zeros(env.n_agents)
@@ -148,15 +151,13 @@ class EpisodeTracker(Tracker):
                 "episode_steps": self._steps[-1],
                 "episode_outcome": self._outcomes[-1][i],
                 "episode_done": self._dones[-1],
-                "episode_time": self._times[-1]
+                "episode_time": self._times[-1],
             }
 
         return stats
 
     def get(self) -> AgentStatisticsMap:
-        outcome_counts = {
-            k: [0 for _ in range(self._num_agents)] for k in M.Outcome
-        }
+        outcome_counts = {k: [0 for _ in range(self._num_agents)] for k in M.Outcome}
         for outcome in self._outcomes:
             for i in range(self._num_agents):
                 outcome_counts[outcome[i]][i] += 1
@@ -173,7 +174,7 @@ class EpisodeTracker(Tracker):
                 "episode_steps_std": np.std(self._steps),
                 "episode_time_mean": np.mean(self._times),
                 "episode_time_std": np.std(self._times),
-                "num_episode_done": np.sum(self._dones)
+                "num_episode_done": np.sum(self._dones),
             }
 
             for outcome, counts in outcome_counts.items():

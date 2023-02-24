@@ -5,9 +5,7 @@ from posggym.model import AgentID
 from posggym_agents.policy import PolicyID
 
 
-def get_policy_id(agent_id: Optional[AgentID],
-                  name: str,
-                  is_symmetric: bool) -> str:
+def get_policy_id(agent_id: Optional[AgentID], name: str, is_symmetric: bool) -> str:
     """Get a standard format policy ID string.
 
     This function ensures naming consistency which helps when saving and

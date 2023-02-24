@@ -1,15 +1,16 @@
-import os
 import abc
 import csv
+import os
 import pathlib
 from datetime import datetime
-from typing import Sequence, Optional, Any, List
+from typing import Any, List, Optional, Sequence
 
 import pandas as pd
 from prettytable import PrettyTable
 
 from posggym_agents.config import BASE_RESULTS_DIR
 from posggym_agents.exp.stats import AgentStatisticsMap, combine_statistics
+
 
 COMPILED_RESULTS_FNAME = "compiled_results.csv"
 
@@ -38,14 +39,14 @@ def format_as_table(values: AgentStatisticsMap) -> str:
                 row.append(str(agent_row_value))
         table.add_row(row)
 
-    table.align = 'r'
-    table.align["AgentID"] = 'l'   # type: ignore
+    table.align = "r"
+    table.align["AgentID"] = "l"  # type: ignore
     return table.get_string()
 
 
-def compile_result_files(save_dir: str,
-                         result_filepaths: List[str],
-                         extra_output_dir: Optional[str] = None) -> str:
+def compile_result_files(
+    save_dir: str, result_filepaths: List[str], extra_output_dir: Optional[str] = None
+) -> str:
     """Compile list of results files into a single file."""
     concat_resultspath = os.path.join(save_dir, COMPILED_RESULTS_FNAME)
 
@@ -65,16 +66,13 @@ def compile_result_files(save_dir: str,
     concat_df.to_csv(concat_resultspath, index=False)
 
     if extra_output_dir:
-        extra_results_filepath = os.path.join(
-            extra_output_dir, COMPILED_RESULTS_FNAME
-        )
+        extra_results_filepath = os.path.join(extra_output_dir, COMPILED_RESULTS_FNAME)
         concat_df.to_csv(extra_results_filepath, index=False)
 
     return concat_resultspath
 
 
-def compile_results(result_dir: str,
-                    extra_output_dir: Optional[str] = None) -> str:
+def compile_results(result_dir: str, extra_output_dir: Optional[str] = None) -> str:
     """Compile all .csv results files in a directory into a single file.
 
     If extra_output_dir is provided then will additionally compile_result to
@@ -84,7 +82,8 @@ def compile_results(result_dir: str,
     exp_ids to entries that have duplicate exp_ids.
     """
     result_filepaths = [
-        os.path.join(result_dir, f) for f in os.listdir(result_dir)
+        os.path.join(result_dir, f)
+        for f in os.listdir(result_dir)
         if (
             os.path.isfile(os.path.join(result_dir, f))
             and ExperimentWriter.is_results_file(f)
@@ -145,9 +144,7 @@ class CSVWriter(Writer):
 
     DEFAULT_RESULTS_FILENAME = "results.csv"
 
-    def __init__(self,
-                 filepath: Optional[str] = None,
-                 dirpath: Optional[str] = None):
+    def __init__(self, filepath: Optional[str] = None, dirpath: Optional[str] = None):
         if filepath is not None and dirpath is None:
             dirpath = os.path.dirname(filepath)
         elif filepath is None and dirpath is not None:
@@ -174,7 +171,7 @@ class CSVWriter(Writer):
 
         # Open a file in 'append' mode, so we can continue logging safely to
         # the same file if needed.
-        with open(self._filepath, 'a') as fout:
+        with open(self._filepath, "a") as fout:
             # Always use same fieldnames to create writer, this way a
             # consistency check is performed automatically on each write.
             writer = csv.DictWriter(fout, fieldnames=self._fieldnames)
@@ -210,13 +207,8 @@ class ExperimentWriter(Writer):
 
     """
 
-    def __init__(self,
-                 exp_id: int,
-                 dirpath: str,
-                 exp_params: AgentStatisticsMap):
-        self._episode_filepath = os.path.join(
-            dirpath, f"exp_{exp_id}_episodes.csv"
-        )
+    def __init__(self, exp_id: int, dirpath: str, exp_params: AgentStatisticsMap):
+        self._episode_filepath = os.path.join(dirpath, f"exp_{exp_id}_episodes.csv")
         self._filepath = os.path.join(dirpath, f"exp_{exp_id}.csv")
 
         if not os.path.exists(dirpath):
@@ -245,7 +237,7 @@ class ExperimentWriter(Writer):
             self._episode_fieldnames = list(statistics[agent_ids[0]].keys())
 
         # Open in 'append' mode to add to results file
-        with open(self._episode_filepath, 'a') as fout:
+        with open(self._episode_filepath, "a") as fout:
             writer = csv.DictWriter(fout, fieldnames=self._episode_fieldnames)
             if not self._episode_header_written:
                 writer.writeheader()
@@ -262,7 +254,7 @@ class ExperimentWriter(Writer):
             self._fieldnames = list(statistics[agent_ids[0]].keys())
 
         # Open in 'write' mode to overwrite any previous summary results
-        with open(self._filepath, 'w') as fout:
+        with open(self._filepath, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=self._fieldnames)
             writer.writeheader()
             for i in agent_ids:

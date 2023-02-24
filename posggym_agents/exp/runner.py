@@ -5,7 +5,7 @@ from typing import Sequence, Optional, Iterable, NamedTuple
 import posggym
 import posggym.model as M
 
-from posggym_agents.policy import BasePolicy
+from posggym_agents.policy import Policy
 import posggym_agents.exp.stats as stats_lib
 import posggym_agents.exp.render as render_lib
 import posggym_agents.exp.writer as writer_lib
@@ -20,12 +20,12 @@ class EpisodeLoopStep(NamedTuple):
     env: posggym.Env
     timestep: M.JointTimestep
     actions: Optional[M.JointAction]
-    policies: Sequence[BasePolicy]
+    policies: Sequence[Policy]
     done: bool
 
 
 def run_episode_loop(env: posggym.Env,
-                     policies: Sequence[BasePolicy],
+                     policies: Sequence[Policy],
                      ) -> Iterable[EpisodeLoopStep]:
     """Run policies in environment."""
     assert len(policies) == env.n_agents, (
@@ -64,7 +64,7 @@ def run_episode_loop(env: posggym.Env,
 
 
 def run_episode(env: posggym.Env,
-                policies: Sequence[BasePolicy],
+                policies: Sequence[Policy],
                 num_episodes: int,
                 trackers: Iterable[stats_lib.Tracker],
                 renderers: Iterable[render_lib.Renderer],

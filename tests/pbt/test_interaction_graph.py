@@ -1,13 +1,11 @@
-import os
 import json
+import os
 import tempfile
 from unittest import TestCase
 
 import pytest
 
 from posggym_agents import pbt
-
-# pylint: disable=[missing-function-docstring]
 
 
 @pytest.mark.parametrize("symmetric", [True, False])

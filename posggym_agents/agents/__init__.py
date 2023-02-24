@@ -1,6 +1,6 @@
 """Registers the internal posggym-agents policies.
 
-Adapted on the Farama Foundation Gymnasium API:
+API adapted from the Farama Foundation Gymnasium API:
 https://github.com/Farama-Foundation/Gymnasium/blob/v0.27.0/gymnasium/envs/__init__.py
 
 """
@@ -16,8 +16,8 @@ from posggym_agents.agents import (
     pursuitevasion_16x16_v0,
 )
 from posggym_agents.agents.random_policies import (
+    DiscreteFixedDistributionPolicy,
     RandomPolicy,
-    DiscreteFixedDistributionPolicy
 )
 from posggym_agents.agents.registration import (
     make,
@@ -36,14 +36,14 @@ register(
     id="Random-v0",
     entry_point=RandomPolicy,
     valid_agent_ids=None,
-    nondeterministic=False
+    nondeterministic=False,
 )
 
 register(
     id="DiscreteFixedDistributionPolicy-v0",
     entry_point=DiscreteFixedDistributionPolicy,
     valid_agent_ids=None,
-    nondeterministic=False
+    nondeterministic=False,
 )
 
 

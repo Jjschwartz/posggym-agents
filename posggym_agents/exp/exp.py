@@ -1,35 +1,31 @@
 """Functions and data structures for running experiments."""
-import os
-import json
-import time
-import random
-import logging
-import pathlib
 import argparse
-import tempfile
-from pprint import pformat
+import json
+import logging
 import multiprocessing as mp
+import os
+import pathlib
+import random
+import tempfile
+import time
 from datetime import datetime
-from typing import (
-    List, Optional, Dict, Any, NamedTuple, Callable, Sequence, Tuple
-)
+from pprint import pformat
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
-import ray
 import numpy as np
-
 import posggym
+import ray
 from posggym import wrappers
 
+import posggym_agents.exp.render as render_lib
+import posggym_agents.exp.stats as stats_lib
+import posggym_agents.exp.writer as writer_lib
 from posggym_agents.agents import make
 from posggym_agents.config import BASE_RESULTS_DIR
-
 from posggym_agents.exp import runner
-import posggym_agents.exp.stats as stats_lib
-import posggym_agents.exp.render as render_lib
-import posggym_agents.exp.writer as writer_lib
 
 
-LINE_BREAK = "-"*60
+LINE_BREAK = "-" * 60
 EXP_ARG_FILE_NAME = "exp_args.json"
 
 
@@ -46,6 +42,7 @@ def _init_lock(lck):
 
 class ExpParams(NamedTuple):
     """Params for a single experiment run."""
+
     exp_id: int
     env_id: str
     policy_ids: List[str]
@@ -67,50 +64,53 @@ def get_exp_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--num_episodes", type=int, default=1000,
-        help="Number of episodes per experiment."
+        "--num_episodes",
+        type=int,
+        default=1000,
+        help="Number of episodes per experiment.",
     )
     parser.add_argument(
-        "--time_limit", type=int, default=None,
-        help="Experiment time limit, in seconds."
+        "--time_limit",
+        type=int,
+        default=None,
+        help="Experiment time limit, in seconds.",
     )
     parser.add_argument(
-        "--n_procs", type=int, default=1,
-        help="Number of processors/experiments to run in parallel."
+        "--n_procs",
+        type=int,
+        default=1,
+        help="Number of processors/experiments to run in parallel.",
     )
     parser.add_argument(
-        "--log_level", type=int, default=21,
-        help="Experiment log level."
+        "--log_level", type=int, default=21, help="Experiment log level."
     )
     parser.add_argument(
-        "--root_save_dir", type=str, default=None,
+        "--root_save_dir",
+        type=str,
+        default=None,
         help=(
             "Optional directory to save results in. If supplied then it must "
             "be an existing directory. If None the default "
             "~/posggym_agents_results/<env_id>/results/ dir is used root "
             "results dir."
-        )
+        ),
     )
     return parser
 
 
-def make_exp_result_dir(exp_name: str,
-                        env_id: str,
-                        root_save_dir: Optional[str] = None) -> str:
+def make_exp_result_dir(
+    exp_name: str, env_id: str, root_save_dir: Optional[str] = None
+) -> str:
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
         root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id, "results")
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
-    result_dir = tempfile.mkdtemp(
-        prefix=f"{exp_name}_{time_str}", dir=root_save_dir
-    )
+    result_dir = tempfile.mkdtemp(prefix=f"{exp_name}_{time_str}", dir=root_save_dir)
     return result_dir
 
 
-def _log_exp_start(params: ExpParams,
-                   result_dir: str,
-                   logger: logging.Logger):
+def _log_exp_start(params: ExpParams, result_dir: str, logger: logging.Logger):
     LOCK.acquire()
     try:
         logger.info(LINE_BREAK)
@@ -122,10 +122,9 @@ def _log_exp_start(params: ExpParams,
         LOCK.release()
 
 
-def _log_exp_end(params: ExpParams,
-                 result_dir: str,
-                 logger: logging.Logger,
-                 exp_time: float):
+def _log_exp_end(
+    params: ExpParams, result_dir: str, logger: logging.Logger, exp_time: float
+):
     LOCK.acquire()
     try:
         logger.info(LINE_BREAK)
@@ -137,10 +136,12 @@ def _log_exp_end(params: ExpParams,
         LOCK.release()
 
 
-def get_exp_run_logger(exp_id: int,
-                       result_dir: str,
-                       stream_log_level: int = logging.INFO,
-                       file_log_level: int = logging.DEBUG) -> logging.Logger:
+def get_exp_run_logger(
+    exp_id: int,
+    result_dir: str,
+    stream_log_level: int = logging.INFO,
+    file_log_level: int = logging.DEBUG,
+) -> logging.Logger:
     """Get the logger for a single experiment run."""
     logger_name = f"exp_{exp_id}"
     logger = logging.getLogger(logger_name)
@@ -150,7 +151,8 @@ def get_exp_run_logger(exp_id: int,
     log_file = os.path.join(result_dir, fname)
     file_formatter = logging.Formatter(
         # [Day-Month Hour-Minute-Second] exp_x Message
-        '[%(asctime)s] %(levelname)s %(message)s', '%d-%m %H:%M:%S'
+        "[%(asctime)s] %(levelname)s %(message)s",
+        "%d-%m %H:%M:%S",
     )
 
     filehandler = logging.FileHandler(log_file)
@@ -159,7 +161,8 @@ def get_exp_run_logger(exp_id: int,
 
     stream_formatter = logging.Formatter(
         # [Day-Month Hour-Minute-Second] exp_x Message
-        '[%(asctime)s] %(name)s %(message)s', '%d-%m %H:%M:%S'
+        "[%(asctime)s] %(name)s %(message)s",
+        "%d-%m %H:%M:%S",
     )
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(stream_formatter)
@@ -182,7 +185,7 @@ def _get_exp_statistics(params: ExpParams) -> stats_lib.AgentStatisticsMap:
             "policy_id": params.policy_ids[i],
             "exp_seed": params.seed,
             "num_episodes": params.num_episodes,
-            "time_limit": params.time_limit if params.time_limit else "None"
+            "time_limit": params.time_limit if params.time_limit else "None",
         }
     return stats
 
@@ -196,9 +199,7 @@ def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
     if params.record_env:
         video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
         if params.record_env_freq:
-            episode_trigger = _get_linear_episode_trigger(
-                params.record_env_freq
-            )
+            episode_trigger = _get_linear_episode_trigger(params.record_env_freq)
         else:
             episode_trigger = None
         env = wrappers.RecordVideo(env, video_folder, episode_trigger)
@@ -211,10 +212,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     exp_start_time = time.time()
 
     exp_logger = get_exp_run_logger(
-        params.exp_id,
-        result_dir,
-        params.stream_log_level,
-        params.file_log_level
+        params.exp_id, result_dir, params.stream_log_level, params.file_log_level
     )
     _log_exp_start(params, result_dir, exp_logger)
 
@@ -253,7 +251,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
             renderers,
             time_limit=params.time_limit,
             logger=exp_logger,
-            writer=writer
+            writer=writer,
         )
         writer.write(statistics)
 
@@ -262,17 +260,17 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         exp_logger.error(pformat(locals()))
         raise ex
     finally:
-        _log_exp_end(
-            params, result_dir, exp_logger, time.time() - exp_start_time
-        )
+        _log_exp_end(params, result_dir, exp_logger, time.time() - exp_start_time)
 
 
-def run_experiments(exp_name: str,
-                    exp_params_list: List[ExpParams],
-                    exp_log_level: int = logging.INFO+1,
-                    n_procs: Optional[int] = None,
-                    exp_args: Optional[Dict] = None,
-                    root_save_dir: Optional[str] = None) -> str:
+def run_experiments(
+    exp_name: str,
+    exp_params_list: List[ExpParams],
+    exp_log_level: int = logging.INFO + 1,
+    n_procs: Optional[int] = None,
+    exp_args: Optional[Dict] = None,
+    root_save_dir: Optional[str] = None,
+) -> str:
     """Run series of experiments.
 
     If exp_args is not None then will write to file in the result dir.
@@ -281,15 +279,14 @@ def run_experiments(exp_name: str,
     logging.basicConfig(
         level=exp_log_level,
         # [Day-Month Hour-Minute-Second] Message
-        format='[%(asctime)s] %(message)s', datefmt='%d-%m %H:%M:%S'
+        format="[%(asctime)s] %(message)s",
+        datefmt="%d-%m %H:%M:%S",
     )
 
     num_exps = len(exp_params_list)
     logging.log(exp_log_level, "Running %d experiments", num_exps)
 
-    result_dir = make_exp_result_dir(
-        exp_name, exp_params_list[0].env_id, root_save_dir
-    )
+    result_dir = make_exp_result_dir(exp_name, exp_params_list[0].env_id, root_save_dir)
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 
     if exp_args:
@@ -316,18 +313,14 @@ def run_experiments(exp_name: str,
             run_single_experiment((params, result_dir))
     else:
         args_list = [(params, result_dir) for params in exp_params_list]
-        with mp.Pool(
-                n_procs, initializer=_initializer, initargs=(mp_lock,)
-        ) as p:
+        with mp.Pool(n_procs, initializer=_initializer, initargs=(mp_lock,)) as p:
             p.map(run_single_experiment, args_list, 1)
 
     logging.log(exp_log_level, "Compiling results")
     writer_lib.compile_results(result_dir)
 
     logging.log(
-        exp_log_level,
-        "Experiment Run time %.2f seconds",
-        time.time() - exp_start_time
+        exp_log_level, "Experiment Run time %.2f seconds", time.time() - exp_start_time
     )
 
     return result_dir
