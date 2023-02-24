@@ -55,10 +55,15 @@ include-package-data = true
 include = ["posggym_agents", "posggym_agents.*"]
 
 [tool.setuptools.package-data]
-posggym_agents = [
-	"agents/*.pkl",
-    "py.typed",
-]
+posggym_agents = ["py.typed"]
+"posggym_agents.agents.driving14x14wideroundabout_n2_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.driving7x7roundabout_n2_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.predatorprey10x10_P2_p3_s2_coop_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.predatorprey10x10_P3_p3_s2_coop_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.predatorprey10x10_P4_p3_s2_coop_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.predatorprey10x10_P4_p3_s3_coop_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.pursuitevasion16x16_v0.agents" = ["*.pkl"]
+"posggym_agents.agents.pursuitevasion8x8_v0.agents" = ["*.pkl"]
 
 # Linters and Test tools #######################################################
 [tool.black]
