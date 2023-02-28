@@ -15,10 +15,10 @@ This version of POSGGym-Agents (version=`0.1.0`) can be installed by cloning thi
 
 ```
 # via ssh
-pip install pip install git+ssh://git@github.com:Jjschwartz/posggym-agents.git@v0.1.1
+pip install pip install git+ssh://git@github.com:Jjschwartz/posggym-agents.git@v0.1.2
 
 # via http
-pip install pip install git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.1
+pip install pip install git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2
 
 ```
 
