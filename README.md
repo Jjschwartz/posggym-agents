@@ -2,7 +2,7 @@
 
 POSGGym-Agents is a collection of agent policies and policy training code for [POSGGym](https://github.com/RDLLab/posggym) environments. It is designed to provide easy-to-use policy implementations that can be used for testing against.
 
-> **_NOTE:_** This project is under active development and you are currently looking at version 0.1.1 of this project which works with the old posggym API (version 0.1.0). Stay tuned for a newer version that is compatible with the newer posggym API.
+> **_NOTE:_** This project is under active development and you are currently looking at version 0.1.2 of this project which works with the old posggym API (version 0.1.0). Stay tuned for a newer version that is compatible with the newer posggym API.
 
 
 ## Installation
@@ -14,11 +14,8 @@ This version of POSGGym-Agents (version=`0.1.0`) can be installed by cloning thi
 1. Using pip to install from repo directly
 
 ```
-# via ssh
-pip install pip install git+ssh://git@github.com:Jjschwartz/posggym-agents.git@v0.1.2
-
 # via http
-pip install pip install git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2
+pip install git+https://github.com/Jjschwartz/posggym-agents.git@v0.1.2
 
 ```
 
