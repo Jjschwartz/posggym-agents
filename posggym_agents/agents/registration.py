@@ -159,6 +159,12 @@ class PolicySpec:
         # Initialize env_id, policy_name, version
         self.env_id, self.policy_name, self.version = parse_policy_id(self.id)
 
+        if isinstance(self.valid_agent_ids, list) and len(self.valid_agent_ids) == 0:
+            raise error.RegistrationError(
+                f"Invalid PolicySpec for policy with id='{self.id}'. `valid_agent_ids` "
+                "must be None or a non-empty list."
+            )
+
 
 def _check_env_id_exists(env_id: str | None):
     """Check if a env ID exists. If it doesn't, print a helpful error message."""

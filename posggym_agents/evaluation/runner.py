@@ -1,77 +1,89 @@
-import time
+"""Functions and classes for running episodes."""
 import logging
-from typing import Sequence, Optional, Iterable, NamedTuple
+import time
+from typing import Dict, Iterable, NamedTuple, Optional, Sequence
 
 import posggym
 import posggym.model as M
 
+import posggym_agents.evaluation.render as render_lib
+import posggym_agents.evaluation.stats as stats_lib
+import posggym_agents.evaluation.writer as writer_lib
 from posggym_agents.policy import Policy
-import posggym_agents.exp.stats as stats_lib
-import posggym_agents.exp.render as render_lib
-import posggym_agents.exp.writer as writer_lib
 
 
-LINE_BREAK = "-"*60
-MAJOR_LINE_BREAK = "="*60
+LINE_BREAK = "-" * 60
+MAJOR_LINE_BREAK = "=" * 60
 
 
 class EpisodeLoopStep(NamedTuple):
     """Output for a single episode step."""
+
     env: posggym.Env
     timestep: M.JointTimestep
-    actions: Optional[M.JointAction]
+    actions: Dict[M.AgentID, M.ActType]
     policies: Sequence[Policy]
     done: bool
 
 
-def run_episode_loop(env: posggym.Env,
-                     policies: Sequence[Policy],
-                     ) -> Iterable[EpisodeLoopStep]:
+def run_episode_loop(
+    env: posggym.Env,
+    policies: Sequence[Policy],
+) -> Iterable[EpisodeLoopStep]:
     """Run policies in environment."""
-    assert len(policies) == env.n_agents, (
-        f"{len(policies)} policies supplied for environment with "
-        f"{env.n_agents} agents."
+    assert len(policies) == len(env.agents), (
+        f"{len(policies)} policies supplied for env with {len(env.agents)} agents."
     )
 
-    joint_obs = env.reset()
+    observations, info = env.reset()
+    if not env.observation_first and observations is None:
+        observations = {i: None for i in env.agents}
 
-    if not env.observation_first:
-        joint_obs = [None] * env.n_agents
-
-    joint_timestep = (    # type: ignore
-        joint_obs, tuple(0.0 for _ in range(env.n_agents)), False, {}
+    joint_timestep = M.JointTimestep(
+        state=env.state,
+        observations=observations,
+        rewards={i: 0.0 for i in env.agents},
+        terminated={i: False for i in env.agents},
+        truncated={i: False for i in env.agents},
+        all_done=False,
+        info=info
     )
-    init_action = None
+
+    init_action = {i: None for i in env.agents}
     yield EpisodeLoopStep(env, joint_timestep, init_action, policies, False)
 
-    episode_end = False
+    all_done = False
     steps = 0
-    while not episode_end:
-        agent_actions = []
-        for i in range(env.n_agents):
-            agent_actions.append(policies[i].step(joint_obs[i]))
+    while not all_done:
+        actions = {}
+        for i in env.agents:
+            actions[i] = policies[i].step(observations[i])
 
-        joint_action = tuple(agent_actions)
-        joint_timestep = env.step(joint_action)
-
-        steps += 1
-        joint_obs = joint_timestep[0]
-        episode_end = joint_timestep[2]
-
-        yield EpisodeLoopStep(
-            env, joint_timestep, joint_action, policies, episode_end
+        observations, rewards, terminated, truncated, all_done, info = env.step(actions)
+        joint_timestep = M.JointTimestep(
+            state=env.state,
+            observations=observations,
+            rewards=rewards,
+            terminated=terminated,
+            truncated=truncated,
+            all_done=all_done,
+            info=info
         )
+        steps += 1
+
+        yield EpisodeLoopStep(env, joint_timestep, actions, policies, all_done)
 
 
-def run_episode(env: posggym.Env,
-                policies: Sequence[Policy],
-                num_episodes: int,
-                trackers: Iterable[stats_lib.Tracker],
-                renderers: Iterable[render_lib.Renderer],
-                time_limit: Optional[int] = None,
-                logger: Optional[logging.Logger] = None,
-                writer: Optional[writer_lib.Writer] = None
-                ) -> stats_lib.AgentStatisticsMap:
+def run_episode(
+    env: posggym.Env,
+    policies: Sequence[Policy],
+    num_episodes: int,
+    trackers: Iterable[stats_lib.Tracker],
+    renderers: Iterable[render_lib.Renderer],
+    time_limit: Optional[int] = None,
+    logger: Optional[logging.Logger] = None,
+    writer: Optional[writer_lib.Writer] = None,
+) -> stats_lib.AgentStatisticsMap:
     """Run Episode simulations for given env and policies."""
     logger = logging.getLogger() if logger is None else logger
     writer = writer_lib.NullWriter() if writer is None else writer
@@ -81,7 +93,7 @@ def run_episode(env: posggym.Env,
         MAJOR_LINE_BREAK,
         num_episodes,
         str(time_limit),
-        MAJOR_LINE_BREAK
+        MAJOR_LINE_BREAK,
     )
 
     episode_num = 0
@@ -98,7 +110,7 @@ def run_episode(env: posggym.Env,
             "%s\nEpisode %d Start\n%s",
             MAJOR_LINE_BREAK,
             episode_num,
-            MAJOR_LINE_BREAK
+            MAJOR_LINE_BREAK,
         )
 
         for tracker in trackers:
@@ -121,23 +133,21 @@ def run_episode(env: posggym.Env,
             "%s\nEpisode %d Complete\n%s",
             LINE_BREAK,
             episode_num,
-            writer_lib.format_as_table(episode_statistics)
+            writer_lib.format_as_table(episode_statistics),
         )
 
         if (episode_num + 1) % progress_display_freq == 0:
-            logger.info(
-                "Episode %d / %d complete", episode_num + 1, num_episodes
-            )
+            logger.info("Episode %d / %d complete", episode_num + 1, num_episodes)
 
         episode_num += 1
 
-        if time_limit is not None and time.time()-run_start_time > time_limit:
+        if time_limit is not None and time.time() - run_start_time > time_limit:
             time_limit_reached = True
             logger.info(
                 "%s\nTime limit of %d s reached after %d episodes",
                 MAJOR_LINE_BREAK,
                 time_limit,
-                episode_num
+                episode_num,
             )
 
     statistics = stats_lib.generate_statistics(trackers)
@@ -146,7 +156,7 @@ def run_episode(env: posggym.Env,
         "%s\nSimulations Complete\n%s\n%s",
         MAJOR_LINE_BREAK,
         writer_lib.format_as_table(statistics),
-        MAJOR_LINE_BREAK
+        MAJOR_LINE_BREAK,
     )
 
     return statistics

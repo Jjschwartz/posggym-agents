@@ -1,3 +1,4 @@
+"""Functions and classes for writing results to file."""
 import abc
 import csv
 import os
@@ -9,7 +10,7 @@ import pandas as pd
 from prettytable import PrettyTable
 
 from posggym_agents.config import BASE_RESULTS_DIR
-from posggym_agents.exp.stats import AgentStatisticsMap, combine_statistics
+from posggym_agents.evaluation.stats import AgentStatisticsMap, combine_statistics
 
 
 COMPILED_RESULTS_FNAME = "compiled_results.csv"

@@ -1,8 +1,7 @@
+"""Functions and classes for rendering the environment during episodes."""
 import abc
-import time
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Dict
 
-import matplotlib.pyplot as plt
 import posggym
 import posggym.model as M
 
@@ -18,7 +17,7 @@ class Renderer(abc.ABC):
         episode_t: int,
         env: posggym.Env,
         timestep: M.JointTimestep,
-        action: M.JointAction,
+        action: Dict[M.AgentID, M.ActType],
         policies: Sequence[Policy],
         episode_end: bool,
     ) -> None:
@@ -28,11 +27,10 @@ class Renderer(abc.ABC):
 class EpisodeRenderer(Renderer):
     """Episode Renderer.
 
-    Calls the posggym.Env.render() function with given mode.
+    Calls the posggym.Env.render() function.
     """
 
-    def __init__(self, mode: str = "human", render_frequency: int = 1):
-        self._mode = mode
+    def __init__(self, render_frequency: int = 1):
         self._render_frequency = render_frequency
         self._episode_count = 0
 
@@ -41,7 +39,7 @@ class EpisodeRenderer(Renderer):
         episode_t: int,
         env: posggym.Env,
         timestep: M.JointTimestep,
-        action: M.JointAction,
+        action: Dict[M.AgentID, M.ActType],
         policies: Sequence[Policy],
         episode_end: bool,
     ) -> None:
@@ -50,8 +48,7 @@ class EpisodeRenderer(Renderer):
             return
 
         self._episode_count += int(episode_end)
-
-        env.render(self._mode)
+        env.render()
 
 
 class PauseRenderer(Renderer):
@@ -68,7 +65,7 @@ class PauseRenderer(Renderer):
         episode_t: int,
         env: posggym.Env,
         timestep: M.JointTimestep,
-        action: M.JointAction,
+        action: Dict[M.AgentID, M.ActType],
         policies: Sequence[Policy],
         episode_end: bool,
     ) -> None:
@@ -80,17 +77,10 @@ def generate_renders(
     episode_t: int,
     env: posggym.Env,
     timestep: M.JointTimestep,
-    action: M.JointAction,
+    action: Dict[M.AgentID, M.ActType],
     policies: Sequence[Policy],
     episode_end: bool,
 ) -> None:
     """Handle the generation of environment step renderings."""
-    num_renderers = 0
     for renderer in renderers:
         renderer.render_step(episode_t, env, timestep, action, policies, episode_end)
-        num_renderers += 1
-
-    if num_renderers > 0:
-        plt.show()
-        # give it time to render
-        time.sleep(0.1)

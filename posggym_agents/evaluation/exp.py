@@ -5,24 +5,21 @@ import logging
 import multiprocessing as mp
 import os
 import pathlib
-import random
 import tempfile
 import time
 from datetime import datetime
 from pprint import pformat
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
-import numpy as np
 import posggym
-import ray
 from posggym import wrappers
 
-import posggym_agents.exp.render as render_lib
-import posggym_agents.exp.stats as stats_lib
-import posggym_agents.exp.writer as writer_lib
+import posggym_agents.evaluation.render as render_lib
+import posggym_agents.evaluation.stats as stats_lib
+import posggym_agents.evaluation.writer as writer_lib
 from posggym_agents.agents import make
 from posggym_agents.config import BASE_RESULTS_DIR
-from posggym_agents.exp import runner
+from posggym_agents.evaluation import runner
 
 
 LINE_BREAK = "-" * 60
@@ -53,6 +50,7 @@ class ExpParams(NamedTuple):
     renderer_fn: Optional[Callable[[], Sequence[render_lib.Renderer]]] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
+    env_kwargs: Optional[Dict[str, Any]] = None
     record_env: bool = False
     # If None then uses the default cubic frequency
     record_env_freq: Optional[int] = None
@@ -194,18 +192,6 @@ def _get_linear_episode_trigger(freq: int) -> Callable[[int], bool]:
     return lambda t: t % freq == 0
 
 
-def _make_env(params: ExpParams, result_dir: str) -> posggym.Env:
-    env = posggym.make(params.env_id, **{"seed": params.seed})
-    if params.record_env:
-        video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
-        if params.record_env_freq:
-            episode_trigger = _get_linear_episode_trigger(params.record_env_freq)
-        else:
-            episode_trigger = None
-        env = wrappers.RecordVideo(env, video_folder, episode_trigger)
-    return env
-
-
 def run_single_experiment(args: Tuple[ExpParams, str]):
     """Run a single experiment and write results to a file."""
     params, result_dir = args
@@ -216,16 +202,18 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     )
     _log_exp_start(params, result_dir, exp_logger)
 
-    seed = params.seed
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-
-    env = _make_env(params, result_dir)
-    assert len(params.policy_ids) == env.n_agents, (
-        f"Experiment env '{env}' has {env.n_agents} agents, but "
-        f"{len(params.policy_ids)} supplied."
+    env = posggym.make(params.env_id, **params.env_kwargs)
+    assert len(params.policy_ids) == len(env.possible_agents), (
+        f"Experiment env '{env}' has {len(env.possible_agents)} possible agents, but "
+        f"only {len(params.policy_ids)} policies supplied."
     )
+
+    if params.record_env:
+        video_folder = os.path.join(result_dir, f"exp_{params.exp_id}_video")
+        episode_trigger = None
+        if params.record_env_freq:
+            episode_trigger = _get_linear_episode_trigger(params.record_env_freq)
+        env = wrappers.RecordVideo(env, video_folder, episode_trigger=episode_trigger)
 
     policies = []
     for i, policy_id in enumerate(params.policy_ids):
@@ -241,6 +229,11 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     writer = writer_lib.ExperimentWriter(
         params.exp_id, result_dir, _get_exp_statistics(params)
     )
+
+    if params.seed is not None:
+        env.reset(seed=params.seed)
+        for i, policy in enumerate(policies):
+            policy.reset(seed=params.seed + i)
 
     try:
         statistics = runner.run_episode(
@@ -301,11 +294,6 @@ def run_experiments(
     def _initializer(init_args):
         proc_lock = init_args
         _init_lock(proc_lock)
-        # limit ray to using only a single CPU per experiment process
-        # For now we just do this by default to save additional configuration
-        # even if policies being tested are not using ray
-        logging.log(exp_log_level, "Initializing ray")
-        ray.init(num_cpus=1, include_dashboard=False)
 
     if n_procs == 1:
         _initializer(mp_lock)
