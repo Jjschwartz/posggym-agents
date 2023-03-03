@@ -70,6 +70,7 @@ def get_symmetric_pairwise_exp_params(
         )
         exp_params_list.append(exp_params)
 
+    env.close()
     return exp_params_list
 
 

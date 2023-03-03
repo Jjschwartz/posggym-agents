@@ -48,6 +48,10 @@ def main(args):    # noqa
         writer=None
     )
 
+    env.close()
+    for policy in policies:
+        policy.close()
+
     print("== All done ==")
 
 
