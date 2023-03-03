@@ -9,7 +9,7 @@ import tempfile
 import time
 from datetime import datetime
 from pprint import pformat
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import posggym
 from posggym import wrappers
@@ -46,8 +46,8 @@ class ExpParams(NamedTuple):
     seed: int
     num_episodes: int
     time_limit: Optional[int] = None
-    tracker_fn: Optional[Callable[[], Sequence[stats_lib.Tracker]]] = None
-    renderer_fn: Optional[Callable[[], Sequence[render_lib.Renderer]]] = None
+    tracker_fn: Optional[Callable[[], List[stats_lib.Tracker]]] = None
+    renderer_fn: Optional[Callable[[], List[render_lib.Renderer]]] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
     env_kwargs: Optional[Dict[str, Any]] = None
@@ -102,7 +102,7 @@ def make_exp_result_dir(
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
     if root_save_dir is None:
-        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id, "results")
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id)
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(prefix=f"{exp_name}_{time_str}", dir=root_save_dir)
     return result_dir
@@ -217,8 +217,8 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
 
     policies = []
     for i, policy_id in enumerate(params.policy_ids):
-        pi = make(policy_id, env.model, i)
-        policies.append(pi)
+        policy = make(policy_id, env.model, i)
+        policies.append(policy)
 
     if params.tracker_fn:
         trackers = params.tracker_fn()
@@ -254,6 +254,11 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         raise ex
     finally:
         _log_exp_end(params, result_dir, exp_logger, time.time() - exp_start_time)
+        env.close()
+        for policy in policies:
+            policy.close()
+        for h in exp_logger.handlers:
+            h.close()
 
 
 def run_experiments(

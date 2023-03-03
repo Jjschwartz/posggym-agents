@@ -6,7 +6,7 @@ It then runs a pairwise evaluation for each possible pairing of policies.
 """
 from itertools import product, combinations_with_replacement
 from pprint import pprint
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 import posggym
 
@@ -14,13 +14,13 @@ import posggym_agents.evaluation as eval_lib
 from posggym_agents.agents.registration import get_all_env_policies
 
 
-def _renderer_fn() -> Sequence[eval_lib.Renderer]:
+def _renderer_fn() -> List[eval_lib.Renderer]:
     return [eval_lib.EpisodeRenderer()]
 
 
 def get_symmetric_pairwise_exp_params(
     env_id: str,
-    policy_ids: Optional[Sequence[str]],
+    policy_ids: Optional[List[str]],
     init_seed: int,
     num_seeds: int,
     num_episodes: int,
@@ -99,7 +99,8 @@ def main(args):    # noqa
         exp_params_list=exp_params_list,
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
-        exp_args=vars(args)
+        exp_args=vars(args),
+        root_save_dir=args.root_save_dir
     )
 
     print("== All done ==")

@@ -1,7 +1,7 @@
 """Functions and classes for running episodes."""
 import logging
 import time
-from typing import Dict, Iterable, NamedTuple, Optional, Sequence
+from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence
 
 import posggym
 import posggym.model as M
@@ -22,18 +22,18 @@ class EpisodeLoopStep(NamedTuple):
     env: posggym.Env
     timestep: M.JointTimestep
     actions: Dict[M.AgentID, M.ActType]
-    policies: Sequence[Policy]
+    policies: List[Policy]
     done: bool
 
 
 def run_episode_loop(
     env: posggym.Env,
-    policies: Sequence[Policy],
+    policies: List[Policy],
 ) -> Iterable[EpisodeLoopStep]:
     """Run policies in environment."""
-    assert len(policies) == len(env.agents), (
-        f"{len(policies)} policies supplied for env with {len(env.agents)} agents."
-    )
+    assert len(policies) == len(
+        env.agents
+    ), f"{len(policies)} policies supplied for env with {len(env.agents)} agents."
 
     observations, info = env.reset()
     if not env.observation_first and observations is None:
@@ -46,7 +46,7 @@ def run_episode_loop(
         terminated={i: False for i in env.agents},
         truncated={i: False for i in env.agents},
         all_done=False,
-        info=info
+        info=info,
     )
 
     init_action = {i: None for i in env.agents}
@@ -67,7 +67,7 @@ def run_episode_loop(
             terminated=terminated,
             truncated=truncated,
             all_done=all_done,
-            info=info
+            info=info,
         )
         steps += 1
 
@@ -76,10 +76,10 @@ def run_episode_loop(
 
 def run_episode(
     env: posggym.Env,
-    policies: Sequence[Policy],
+    policies: List[Policy],
     num_episodes: int,
-    trackers: Iterable[stats_lib.Tracker],
-    renderers: Iterable[render_lib.Renderer],
+    trackers: List[stats_lib.Tracker],
+    renderers: List[render_lib.Renderer],
     time_limit: Optional[int] = None,
     logger: Optional[logging.Logger] = None,
     writer: Optional[writer_lib.Writer] = None,
@@ -125,16 +125,18 @@ def run_episode(
                 tracker.step(t, *loop_step)
             render_lib.generate_renders(renderers, t, *loop_step)
 
-        episode_statistics = stats_lib.generate_episode_statistics(trackers)
-        writer.write_episode(episode_statistics)
-
-        logger.log(
-            logging.INFO - 1,
-            "%s\nEpisode %d Complete\n%s",
-            LINE_BREAK,
-            episode_num,
-            writer_lib.format_as_table(episode_statistics),
-        )
+        if len(trackers):
+            episode_statistics = stats_lib.generate_episode_statistics(trackers)
+            writer.write_episode(episode_statistics)
+            logger.log(
+                logging.INFO - 1,
+                "%s\nEpisode %d Complete\n%s",
+                LINE_BREAK,
+                episode_num,
+                writer_lib.format_as_table(episode_statistics),
+            )
+        else:
+            logger.log(logging.INFO - 1, "\nEpisode %d Complete\n", episode_num)
 
         if (episode_num + 1) % progress_display_freq == 0:
             logger.info("Episode %d / %d complete", episode_num + 1, num_episodes)
@@ -150,13 +152,20 @@ def run_episode(
                 episode_num,
             )
 
-    statistics = stats_lib.generate_statistics(trackers)
-
-    logger.info(
-        "%s\nSimulations Complete\n%s\n%s",
-        MAJOR_LINE_BREAK,
-        writer_lib.format_as_table(statistics),
-        MAJOR_LINE_BREAK,
-    )
+    if len(trackers):
+        statistics = stats_lib.generate_statistics(trackers)
+        logger.info(
+            "%s\nSimulations Complete\n%s\n%s",
+            MAJOR_LINE_BREAK,
+            writer_lib.format_as_table(statistics),
+            MAJOR_LINE_BREAK,
+        )
+    else:
+        statistics = {}
+        logger.info(
+            "%s\nSimulations Complete\n%s",
+            MAJOR_LINE_BREAK,
+            MAJOR_LINE_BREAK,
+        )
 
     return statistics
