@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from posggym.model import AgentID
 
-from posggym_agents.pbt.interaction_graph import InteractionGraph
-from posggym_agents.pbt.utils import get_policy_id
+from posggym_agents.rllib.pbt.interaction_graph import InteractionGraph
+from posggym_agents.rllib.pbt.utils import get_policy_id
 
 
 def get_sp_policy_id(agent_id: Optional[AgentID], is_symmetric: bool) -> str:

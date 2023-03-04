@@ -4,8 +4,8 @@ from typing import Callable, List, Optional, Tuple
 
 from posggym.model import AgentID
 
-from posggym_agents.pbt.interaction_graph import InteractionGraph
-from posggym_agents.pbt.utils import get_policy_id
+from posggym_agents.rllib.pbt.interaction_graph import InteractionGraph
+from posggym_agents.rllib.pbt.utils import get_policy_id
 
 
 def get_klr_policy_id(agent_id: Optional[AgentID], k: int, is_symmetric: bool) -> str:
