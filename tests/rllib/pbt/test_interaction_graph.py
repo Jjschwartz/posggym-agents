@@ -5,7 +5,7 @@ from unittest import TestCase
 
 import pytest
 
-from posggym_agents import pbt
+from posggym_agents.rllib import pbt
 
 
 @pytest.mark.parametrize("symmetric", [True, False])

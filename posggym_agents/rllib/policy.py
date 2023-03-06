@@ -197,16 +197,16 @@ def load_rllib_policy_spec(
         flat_obs_space: spaces.Box = spaces.flatten_space(obs_space)  # type: ignore
 
         # TODO generalize this to other kinds of spaces
-        og_gym_action_space = spaces.Discrete(action_space.n)
-        og_gym_obs_space = spaces.Box(
-            flat_obs_space.low,
-            flat_obs_space.high,
-            dtype=flat_obs_space.dtype,  # type: ignore
-        )
+        # og_gym_action_space = spaces.Discrete(action_space.n)
+        # og_gym_obs_space = spaces.Box(
+        #     flat_obs_space.low,
+        #     flat_obs_space.high,
+        #     dtype=flat_obs_space.dtype,  # type: ignore
+        # )
 
         ppo_policy = PPOTorchPolicy(
-            og_gym_obs_space,
-            og_gym_action_space,
+            flat_obs_space,
+            action_space,
             data["config"],
         )
         ppo_policy.set_state(data["state"])

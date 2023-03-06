@@ -9,7 +9,7 @@ BASE_DIR = osp.dirname(osp.abspath(__file__))
 BASE_AGENT_DIR = osp.join(BASE_DIR, "agents")
 
 POLICY_FILES = {
-    0: [
+    "0": [
         "klr_k0_seed0_i0.pkl",
         "klr_k0_seed1_i0.pkl",
         "klr_k0_seed2_i0.pkl",
@@ -46,7 +46,7 @@ POLICY_FILES = {
         "sp_seed3_i0.pkl",
         "sp_seed4_i0.pkl",
     ],
-    1: [
+    "1": [
         "klr_k0_seed0_i1.pkl",
         "klr_k0_seed1_i1.pkl",
         "klr_k0_seed2_i1.pkl",

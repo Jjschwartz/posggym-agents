@@ -51,9 +51,6 @@ def test_policy(spec: PolicySpec, env_id_prefix: str):
     test_policy = pga.make(spec, env.model, test_agent_id)
     assert isinstance(test_policy, Policy)
 
-    if not env.observation_first:
-        obs = {i: None for i in env.agents}
-
     test_policy.reset(seed=SEED + 1)
 
     for t in range(2):
@@ -108,8 +105,6 @@ def test_policy_determinism_rollout(spec: PolicySpec):
 
     obs, _ = env_1.reset(seed=SEED)
     env_2.reset(seed=SEED)
-    if not env_1.observation_first:
-        obs = {i: None for i in env_1.agents}
 
     if spec.valid_agent_ids:
         agent_id = list(set(env_1.agents).intersection(spec.valid_agent_ids))[0]
@@ -152,9 +147,6 @@ def test_policy_determinism_rollout(spec: PolicySpec):
             if agent_id not in env_1.agents:
                 # policy no longer valid, for new environment state so just end test
                 break
-
-            if not env_1.observation_first:
-                obs = {i: None for i in env_1.agents}
 
             policy_1.reset()
             policy_2.reset()
