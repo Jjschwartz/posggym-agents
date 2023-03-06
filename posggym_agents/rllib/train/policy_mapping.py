@@ -20,7 +20,7 @@ def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
     - the policy ID naming convention used by baposgmcp.pbt
     - there is only one policy per agent.
     """
-    for policy_id in episode.policy_map.keys():
+    for policy_id in episode.policy_map:
         if policy_id.endswith(agent_id):
             return policy_id
     raise AssertionError
@@ -37,7 +37,7 @@ def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
 
     def symmetric_mapping_fn(agent_id, episode, worker, **kwargs):
         policies_to_train = [
-            pid for pid in worker.policy_map.keys()
+            pid for pid in worker.policy_map
             if worker.is_policy_to_train(pid, None)
         ]
         policies_to_train.sort()
@@ -55,7 +55,7 @@ def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
 
     def asymmetric_mapping_fn(agent_id, episode, worker, **kwargs):
         policies_to_train = [
-            pid for pid in worker.policy_map.keys()
+            pid for pid in worker.policy_map
             if worker.is_policy_to_train(pid, None)
         ]
         policies_to_train.sort()
@@ -97,7 +97,7 @@ def uniform_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
     Assumes the policy ID naming convention used by baposgmcp.pbt.
     """
     agent_policies = []
-    for policy_id in episode.policy_map.keys():
+    for policy_id in episode.policy_map:
         if policy_id.endswith(agent_id):
             agent_policies.append(policy_id)
     return random.choice(agent_policies)

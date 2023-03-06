@@ -187,15 +187,14 @@ def test_make_deprecated():
     )
 
     env = posggym.make(TEST_ENV_ID)
-    with warnings.catch_warnings(record=True):
-        with pytest.raises(
-            pga.error.Error,
-            match=re.escape(
-                "Policy version v0 for `DummyPolicy` is deprecated. Please use "
-                "`DummyPolicy-v1` instead."
-            ),
-        ):
-            pga.make("DummyPolicy-v0", env.model, env.agents[0])
+    with warnings.catch_warnings(record=True), pytest.raises(
+        pga.error.Error,
+        match=re.escape(
+            "Policy version v0 for `DummyPolicy` is deprecated. Please use "
+            "`DummyPolicy-v1` instead."
+        ),
+    ):
+        pga.make("DummyPolicy-v0", env.model, env.agents[0])
 
     del pga.registry["DummyPolicy-v1"]
 

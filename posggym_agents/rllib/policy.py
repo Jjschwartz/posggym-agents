@@ -4,14 +4,10 @@ from __future__ import annotations
 import abc
 import os.path as osp
 import pickle
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-import gym
 import numpy as np
-import posggym.model as M
 from gymnasium import spaces
-from posggym.utils.history import AgentHistory
-from ray import rllib
 from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 
 from posggym_agents import logger
@@ -23,6 +19,12 @@ from posggym_agents.rllib.preprocessors import (
     identity_preprocessor,
 )
 from posggym_agents.utils.download import download_from_repo
+
+
+if TYPE_CHECKING:
+    import posggym.model as M
+    from posggym.utils.history import AgentHistory
+    from ray import rllib
 
 
 RllibHiddenState = List[Any]
@@ -194,10 +196,9 @@ def load_rllib_policy_spec(
         obs_space = model.observation_spaces[agent_id]
         flat_obs_space: spaces.Box = spaces.flatten_space(obs_space)  # type: ignore
 
-        # Need to use Open AI gym class since Rllib doesn't yet use gymnasium
         # TODO generalize this to other kinds of spaces
-        og_gym_action_space = gym.spaces.Discrete(action_space.n)
-        og_gym_obs_space = gym.spaces.Box(
+        og_gym_action_space = spaces.Discrete(action_space.n)
+        og_gym_obs_space = spaces.Box(
             flat_obs_space.low,
             flat_obs_space.high,
             dtype=flat_obs_space.dtype,  # type: ignore

@@ -5,11 +5,10 @@ import abc
 import copy
 from typing import TYPE_CHECKING, Any, Dict, Generic, TypeVar
 
-from posggym.model import AgentID, POSGModel
-from posggym.utils.history import AgentHistory
-
 
 if TYPE_CHECKING:
+    from posggym.model import AgentID, POSGModel
+    from posggym.utils.history import AgentHistory
     from posggym_agents.agent.registration import PolicySpec
 
 

@@ -7,13 +7,16 @@ https://github.com/uoe-agents/lb-foraging/blob/master/lbforaging/agents/heuristi
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from posggym.envs.grid_world.core import Coord
 from posggym.envs.grid_world.lbf import LBFAction, LBFModel, LBFObs
-from posggym.model import AgentID
 
 from posggym_agents.policy import Policy, PolicyState, PolicyID
+
+
+if TYPE_CHECKING:
+    from posggym.model import AgentID
+    from posggym.envs.grid_world.core import Coord
 
 
 class LBFHeuristicPolicy(Policy[LBFAction, LBFObs]):
@@ -119,7 +122,7 @@ class LBFHeuristicPolicy(Policy[LBFAction, LBFObs]):
 
     def _get_valid_move_actions(self, agent_obs: List[Coord]) -> List[LBFAction]:
         y, x = agent_obs[0][:2]
-        other_agent_pos = set([o[:2] for o in agent_obs[1:] if o[0] > -1])
+        other_agent_pos = {o[:2] for o in agent_obs[1:] if o[0] > -1}
         width, height = self.model.field_size
 
         valid_actions = []

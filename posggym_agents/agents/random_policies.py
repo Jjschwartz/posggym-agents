@@ -1,15 +1,16 @@
 """Random generic policies."""
-
 from __future__ import annotations
 
 import random
-from typing import List, Dict
+from typing import List, Dict, TYPE_CHECKING
 
 from gymnasium import spaces
 
-import posggym.model as M
-
 from posggym_agents.policy import Policy, PolicyID, PolicyState, ObsType
+
+
+if TYPE_CHECKING:
+    import posggym.model as M
 
 
 class DiscreteFixedDistributionPolicy(Policy[int, ObsType]):
@@ -20,11 +21,13 @@ class DiscreteFixedDistributionPolicy(Policy[int, ObsType]):
 
     """
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 agent_id: M.AgentID,
-                 policy_id: PolicyID,
-                 dist: Dict[int, float] | None = None):
+    def __init__(
+        self,
+        model: M.POSGModel,
+        agent_id: M.AgentID,
+        policy_id: PolicyID,
+        dist: Dict[int, float] | None = None,
+    ):
         super().__init__(model, agent_id, policy_id)
 
         action_space = self.model.action_spaces[self.agent_id]
@@ -76,10 +79,7 @@ class RandomPolicy(Policy):
 
     """
 
-    def __init__(self,
-                 model: M.POSGModel,
-                 agent_id: M.AgentID,
-                 policy_id: PolicyID):
+    def __init__(self, model: M.POSGModel, agent_id: M.AgentID, policy_id: PolicyID):
         super().__init__(model, agent_id, policy_id)
         self._action_space = model.action_spaces[agent_id]
 

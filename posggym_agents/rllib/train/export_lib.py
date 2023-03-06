@@ -4,14 +4,17 @@ import os
 import pickle
 import tempfile
 from datetime import datetime
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Union, TYPE_CHECKING
 
 import ray
-from posggym.model import AgentID
 
-from posggym_agents.policy import PolicyID
 from posggym_agents.rllib import pbt
 from posggym_agents.rllib.train.utils import RllibAlgorithmMap, nested_remove
+
+
+if TYPE_CHECKING:
+    from posggym.model import AgentID
+    from posggym_agents.policy import PolicyID
 
 
 ALGORITHM_CONFIG_FILE = "algorithm_config.pkl"

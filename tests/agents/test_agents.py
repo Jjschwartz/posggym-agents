@@ -94,11 +94,8 @@ def test_policy_determinism_rollout(spec: PolicySpec):
 
     # Ignore warnings for env creation
     with warnings.catch_warnings(record=False):
-        if spec.env_id is None:
-            # policy is generic so just test on a standard env
-            env_id = DEFAULT_ENV
-        else:
-            env_id = spec.env_id
+        # policy is generic if spec.env_id is None so just test on a standard env
+        env_id = DEFAULT_ENV if spec.env_id is None else spec.env_id
 
     # use two identical environments in case policies utilize models (e.g. for planning)
     env_1 = posggym.make(env_id)

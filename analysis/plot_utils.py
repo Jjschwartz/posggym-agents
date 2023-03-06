@@ -1,3 +1,4 @@
+"""Plotting functions for posggym-agents analysis."""
 from itertools import product
 from typing import List, Optional, Tuple
 
@@ -120,7 +121,10 @@ def annotate_heatmap(im,
 
     # Set default alignment to center, but allow it to be
     # overwritten by textkw.
-    kw = dict(horizontalalignment="center", verticalalignment="center")
+    kw = {
+        "horizontalalignment": "center",
+        "verticalalignment": "center"
+    }
     kw.update(textkw)
 
     # Get the formatter in case a string is supplied
@@ -419,9 +423,10 @@ def get_all_mean_pairwise_values(plot_df,
             ][y_key]
             y = ys.mean()
 
-            if row_pop == col_pop:
-                sp_values.append(y)
-            elif isinstance(col_pop, tuple) and all(row_pop == p for p in col_pop):
+            if (
+                row_pop == col_pop
+                or (isinstance(col_pop, tuple) and all(row_pop == p for p in col_pop))
+            ):
                 sp_values.append(y)
             else:
                 xp_values.append(y)

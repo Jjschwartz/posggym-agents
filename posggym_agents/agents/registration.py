@@ -12,12 +12,13 @@ import importlib
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Protocol, Tuple
-
-import posggym.model as M
+from typing import Dict, List, Protocol, Tuple, TYPE_CHECKING
 
 from posggym_agents import error, logger
-from posggym_agents.policy import Policy
+
+if TYPE_CHECKING:
+    import posggym.model as M
+    from posggym_agents.policy import Policy
 
 
 # [env-name/](policy-id)-v(version)

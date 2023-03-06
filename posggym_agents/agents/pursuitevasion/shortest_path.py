@@ -1,9 +1,8 @@
 """Shortest path policy for PursuitEvasion env."""
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 
-from posggym.envs.grid_world.core import Coord, Direction
 from posggym.envs.grid_world.pursuit_evasion import (
     ACTION_TO_DIR,
     INITIAL_DIR,
@@ -11,10 +10,14 @@ from posggym.envs.grid_world.pursuit_evasion import (
     PEObs,
     PursuitEvasionModel,
 )
-from posggym.model import AgentID
-from posggym.utils.history import AgentHistory
 
 from posggym_agents.policy import Policy, PolicyID, PolicyState
+
+
+if TYPE_CHECKING:
+    from posggym.envs.grid_world.core import Coord, Direction
+    from posggym.model import AgentID
+    from posggym.utils.history import AgentHistory
 
 
 class PEShortestPathPolicy(Policy[PEAction, PEObs]):
@@ -112,7 +115,7 @@ class PEShortestPathPolicy(Policy[PEAction, PEObs]):
             "facing_dir": facing_dir,
             "coord": coord,
             "prev_coord": prev_coord,
-            "target_coord": target_coord
+            "target_coord": target_coord,
         }
 
     def sample_action(self, state: PolicyState) -> PEAction:

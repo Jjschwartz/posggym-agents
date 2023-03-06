@@ -1,7 +1,7 @@
 """Functions and classes for running episodes."""
 import logging
 import time
-from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence
+from typing import Dict, Iterable, List, NamedTuple, Optional
 
 import posggym
 import posggym.model as M

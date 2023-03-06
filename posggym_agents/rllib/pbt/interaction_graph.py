@@ -130,7 +130,7 @@ class InteractionGraph:
         assert (
             dest_policy_id in self._policies[dest_agent_id]
         ), f"Destination policy with ID={dest_policy_id} not in graph."
-        assert 0 <= weight, f"Edge weight={weight} must be non-negative."
+        assert weight >= 0, f"Edge weight={weight} must be non-negative."
 
         if dest_agent_id not in self._graph[src_agent_id][src_policy_id]:
             self._graph[src_agent_id][src_policy_id][dest_agent_id] = {}

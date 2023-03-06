@@ -41,7 +41,7 @@ def test_register(
     if version is not None:
         full_name = f"{full_name}-v{version}"
 
-    assert full_name in pga.agents.registry.keys()
+    assert full_name in pga.agents.registry
 
     del pga.agents.registry[policy_id]
 
