@@ -24,7 +24,7 @@ class PEShortestPathPolicy(Policy[PEAction, PEObs]):
     """Shortest Path Policy for the Pursuit Evasion environment.
 
     This policy sets the preferred action as the one which is on the shortest
-    path to the evaders goal and which doesnt leave agent in same position.
+    path to the evaders goal and which doesn't leave agent in same position.
 
     """
 
@@ -103,7 +103,7 @@ class PEShortestPathPolicy(Policy[PEAction, PEObs]):
         coord = obs[1] if self._is_evader else obs[2]
         prev_coord = coord
         target_coord = obs[3] if self._is_evader else obs[1]
-        for (a, _) in history:
+        for a, _ in history:
             if a is None:
                 continue
             facing_dir = ACTION_TO_DIR[a][facing_dir]

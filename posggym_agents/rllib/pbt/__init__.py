@@ -2,7 +2,7 @@ from posggym_agents.rllib.pbt.interaction_graph import (
     InteractionGraph,
     PolicyExportFn,
     PolicyImportFn,
-    PolicyState
+    PolicyState,
 )
 from posggym_agents.rllib.pbt.klr import (
     construct_klr_interaction_graph,

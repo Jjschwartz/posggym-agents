@@ -7,14 +7,16 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 
-def heatmap(data,
-            row_labels,
-            col_labels,
-            ax=None,
-            show_cbar=True,
-            cbar_kw={},
-            cbarlabel="",
-            **kwargs):
+def heatmap(
+    data,
+    row_labels,
+    col_labels,
+    ax=None,
+    show_cbar=True,
+    cbar_kw={},
+    cbarlabel="",
+    **kwargs,
+):
     """Create a heatmap from a numpy array and two lists of labels.
 
     ref:
@@ -60,32 +62,30 @@ def heatmap(data,
     ax.set_yticks(np.arange(data.shape[0]), labels=row_labels)
 
     # Let the horizontal axes labeling appear on top.
-    ax.tick_params(
-        top=True, bottom=False, labeltop=True, labelbottom=False
-    )
+    ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(
-        ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor"
-    )
+    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
 
     # Turn spines off and create white grid.
     ax.spines[:].set_visible(False)
 
-    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
-    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
-    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.set_xticks(np.arange(data.shape[1] + 1) - 0.5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0] + 1) - 0.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=3)
     ax.tick_params(which="minor", bottom=False, left=False)
 
     return im, cbar
 
 
-def annotate_heatmap(im,
-                     data=None,
-                     valfmt="{x:.2f}",
-                     textcolors=("black", "white"),
-                     threshold=None,
-                     **textkw):
+def annotate_heatmap(
+    im,
+    data=None,
+    valfmt="{x:.2f}",
+    textcolors=("black", "white"),
+    threshold=None,
+    **textkw,
+):
     """Annotate a heatmap.
 
     Parameters
@@ -117,14 +117,11 @@ def annotate_heatmap(im,
     if threshold is not None:
         threshold = im.norm(threshold)
     else:
-        threshold = im.norm(data.max())/2.
+        threshold = im.norm(data.max()) / 2.0
 
     # Set default alignment to center, but allow it to be
     # overwritten by textkw.
-    kw = {
-        "horizontalalignment": "center",
-        "verticalalignment": "center"
-    }
+    kw = {"horizontalalignment": "center", "verticalalignment": "center"}
     kw.update(textkw)
 
     # Get the formatter in case a string is supplied
@@ -143,12 +140,14 @@ def annotate_heatmap(im,
     return texts
 
 
-def plot_pairwise_heatmap(ax,
-                          labels: Tuple[List[str], List[str]],
-                          values: np.ndarray,
-                          title: Optional[str] = None,
-                          vrange: Optional[Tuple[float, float]] = None,
-                          valfmt: Optional[str] = None):
+def plot_pairwise_heatmap(
+    ax,
+    labels: Tuple[List[str], List[str]],
+    values: np.ndarray,
+    title: Optional[str] = None,
+    vrange: Optional[Tuple[float, float]] = None,
+    valfmt: Optional[str] = None,
+):
     """Plot pairwise values as a heatmap."""
     # Note numpy arrays by default have (0, 0) in the top-left corner.
     # While matplotlib images are displayed with (0, 0) being the bottom-left
@@ -171,27 +170,29 @@ def plot_pairwise_heatmap(ax,
         show_cbar=False,
         cmap="viridis",
         vmin=vrange[0],
-        vmax=vrange[1]
+        vmax=vrange[1],
     )
 
     annotate_heatmap(
         im,
         valfmt=valfmt,
         textcolors=("white", "black"),
-        threshold=vrange[0]+(0.2*(vrange[1] - vrange[0]))
+        threshold=vrange[0] + (0.2 * (vrange[1] - vrange[0])),
     )
 
     if title:
         ax.set_title(title)
 
 
-def get_pairwise_values(plot_df,
-                        y_key: str,
-                        policy_key: str = "policy_id",
-                        coplayer_policy_key: str = "coplayer_policy_id",
-                        coplayer_policies: Optional[List[str]] = None,
-                        average_duplicates: bool = True,
-                        duplicate_warning: bool = False):
+def get_pairwise_values(
+    plot_df,
+    y_key: str,
+    policy_key: str = "policy_id",
+    coplayer_policy_key: str = "coplayer_policy_id",
+    coplayer_policies: Optional[List[str]] = None,
+    average_duplicates: bool = True,
+    duplicate_warning: bool = False,
+):
     """Get values for each policy pairing."""
     policies = plot_df[policy_key].unique().tolist()
     policies.sort()
@@ -211,24 +212,24 @@ def get_pairwise_values(plot_df,
         row_policy_idx = policies.index(row_policy)
         col_policy_idx = coplayer_policies.index(col_policy)
 
-        pw_values[row_policy_idx][col_policy_idx] = group.mean(
-            numeric_only=True
-        )[y_key]
+        pw_values[row_policy_idx][col_policy_idx] = group.mean(numeric_only=True)[y_key]
 
     return pw_values, (policies, coplayer_policies)
 
 
-def plot_pairwise_comparison(plot_df,
-                             y_key: str,
-                             policy_key: str = "policy_id",
-                             coplayer_policy_key: str = "coplayer_policy_id",
-                             y_err_key: Optional[str] = None,
-                             vrange=None,
-                             figsize=(20, 20),
-                             valfmt=None,
-                             coplayer_policies: Optional[List[str]] = None,
-                             average_duplicates: bool = True,
-                             duplicate_warning: bool = False):
+def plot_pairwise_comparison(
+    plot_df,
+    y_key: str,
+    policy_key: str = "policy_id",
+    coplayer_policy_key: str = "coplayer_policy_id",
+    y_err_key: Optional[str] = None,
+    vrange=None,
+    figsize=(20, 20),
+    valfmt=None,
+    coplayer_policies: Optional[List[str]] = None,
+    average_duplicates: bool = True,
+    duplicate_warning: bool = False,
+):
     """Plot results for each policy pairings.
 
     This produces a policy X policy grid-plot
@@ -265,7 +266,7 @@ def plot_pairwise_comparison(plot_df,
         coplayer_policy_key=coplayer_policy_key,
         coplayer_policies=coplayer_policies,
         average_duplicates=average_duplicates,
-        duplicate_warning=duplicate_warning
+        duplicate_warning=duplicate_warning,
     )
 
     plot_pairwise_heatmap(
@@ -274,7 +275,7 @@ def plot_pairwise_comparison(plot_df,
         pw_values,
         title=None,
         vrange=vrange,
-        valfmt=valfmt
+        valfmt=valfmt,
     )
 
     if y_err_key:
@@ -285,7 +286,7 @@ def plot_pairwise_comparison(plot_df,
             coplayer_policy_key=coplayer_policy_key,
             coplayer_policies=coplayer_policies,
             average_duplicates=average_duplicates,
-            duplicate_warning=duplicate_warning
+            duplicate_warning=duplicate_warning,
         )
 
         plot_pairwise_heatmap(
@@ -294,22 +295,24 @@ def plot_pairwise_comparison(plot_df,
             pw_err_values,
             title=None,
             vrange=None,
-            valfmt=valfmt
+            valfmt=valfmt,
         )
         fig.tight_layout()
 
 
-def plot_pairwise_population_comparison(plot_df,
-                                        y_key: str,
-                                        pop_key: str,
-                                        policy_key: str,
-                                        coplayer_pop_key: str,
-                                        coplayer_policy_key: str,
-                                        vrange=None,
-                                        figsize=(20, 20),
-                                        valfmt=None,
-                                        average_duplicates: bool = True,
-                                        duplicate_warning: bool = False):
+def plot_pairwise_population_comparison(
+    plot_df,
+    y_key: str,
+    pop_key: str,
+    policy_key: str,
+    coplayer_pop_key: str,
+    coplayer_policy_key: str,
+    vrange=None,
+    figsize=(20, 20),
+    valfmt=None,
+    average_duplicates: bool = True,
+    duplicate_warning: bool = False,
+):
     """Plot results for each policy-seed pairings.
 
     This produces a grid of (grid)-plots:
@@ -341,16 +344,14 @@ def plot_pairwise_population_comparison(plot_df,
     co_policies = plot_df[coplayer_policy_key].unique().tolist()
     co_policies.sort()
 
-    fig, axs = plt.subplots(
-        nrows=len(pop_ids), ncols=len(co_pop_ids), figsize=figsize
-    )
+    fig, axs = plt.subplots(nrows=len(pop_ids), ncols=len(co_pop_ids), figsize=figsize)
 
-    for (row_pop, col_pop) in product(pop_ids, co_pop_ids):
+    for row_pop, col_pop in product(pop_ids, co_pop_ids):
         row_pop_idx = pop_ids.index(row_pop)
         col_pop_idx = co_pop_ids.index(col_pop)
 
         pw_values = np.zeros((len(policies), len(policies)))
-        for (row_policy, col_policy) in product(policies, co_policies):
+        for row_policy, col_policy in product(policies, co_policies):
             row_policy_idx = policies.index(row_policy)
             col_policy_idx = co_policies.index(col_policy)
 
@@ -376,7 +377,7 @@ def plot_pairwise_population_comparison(plot_df,
             pw_values,
             title=None,
             vrange=vrange,
-            valfmt=valfmt
+            valfmt=valfmt,
         )
 
         if row_pop_idx == 0:
@@ -388,12 +389,14 @@ def plot_pairwise_population_comparison(plot_df,
     return fig, axs
 
 
-def get_all_mean_pairwise_values(plot_df,
-                                 y_key: str,
-                                 policy_key: str,
-                                 pop_key: str,
-                                 coplayer_policy_key: str,
-                                 coplayer_pop_key: str):
+def get_all_mean_pairwise_values(
+    plot_df,
+    y_key: str,
+    policy_key: str,
+    pop_key: str,
+    coplayer_policy_key: str,
+    coplayer_pop_key: str,
+):
     """Get mean pairwise values for all policies."""
     policies = plot_df[policy_key].unique().tolist()
     policies.sort()
@@ -407,14 +410,14 @@ def get_all_mean_pairwise_values(plot_df,
     xp_pw_returns = np.zeros((len(policies), len(co_policies)))
     sp_pw_returns = np.zeros((len(policies), len(co_policies)))
 
-    for (row_policy, col_policy) in product(policies, co_policies):
+    for row_policy, col_policy in product(policies, co_policies):
         row_policy_idx = policies.index(row_policy)
         col_policy_idx = co_policies.index(col_policy)
 
         sp_values = []
         xp_values = []
 
-        for (row_pop, col_pop) in product(pop_ids, co_pop_ids):
+        for row_pop, col_pop in product(pop_ids, co_pop_ids):
             ys = plot_df[
                 (plot_df[policy_key] == row_policy)
                 & (plot_df[pop_key] == row_pop)
@@ -423,9 +426,8 @@ def get_all_mean_pairwise_values(plot_df,
             ][y_key]
             y = ys.mean()
 
-            if (
-                row_pop == col_pop
-                or (isinstance(col_pop, tuple) and all(row_pop == p for p in col_pop))
+            if row_pop == col_pop or (
+                isinstance(col_pop, tuple) and all(row_pop == p for p in col_pop)
             ):
                 sp_values.append(y)
             else:
@@ -437,15 +439,17 @@ def get_all_mean_pairwise_values(plot_df,
     return (policies, co_policies), sp_pw_returns, xp_pw_returns
 
 
-def plot_mean_pairwise_comparison(plot_df,
-                                  y_key: str,
-                                  policy_key: str,
-                                  pop_key: str,
-                                  coplayer_policy_key: str,
-                                  coplayer_pop_key: str,
-                                  vrange: Optional[Tuple[float, float]] = None,
-                                  figsize=(12, 6),
-                                  valfmt=None):
+def plot_mean_pairwise_comparison(
+    plot_df,
+    y_key: str,
+    policy_key: str,
+    pop_key: str,
+    coplayer_policy_key: str,
+    coplayer_pop_key: str,
+    vrange: Optional[Tuple[float, float]] = None,
+    figsize=(12, 6),
+    valfmt=None,
+):
     """Plot mean pairwise comparison of policies for given y variable."""
     policy_ids, sp_values, xp_values = get_all_mean_pairwise_values(
         plot_df,
@@ -453,7 +457,7 @@ def plot_mean_pairwise_comparison(plot_df,
         policy_key=policy_key,
         pop_key=pop_key,
         coplayer_policy_key=coplayer_policy_key,
-        coplayer_pop_key=coplayer_pop_key
+        coplayer_pop_key=coplayer_pop_key,
     )
 
     if vrange is None:
@@ -463,20 +467,10 @@ def plot_mean_pairwise_comparison(plot_df,
 
     fig, axs = plt.subplots(nrows=1, ncols=3, figsize=figsize)
     plot_pairwise_heatmap(
-        axs[0],
-        policy_ids,
-        sp_values,
-        title="Same-Play",
-        vrange=vrange,
-        valfmt=valfmt
+        axs[0], policy_ids, sp_values, title="Same-Play", vrange=vrange, valfmt=valfmt
     )
     plot_pairwise_heatmap(
-        axs[1],
-        policy_ids,
-        xp_values,
-        title="Cross-Play",
-        vrange=vrange,
-        valfmt=valfmt
+        axs[1], policy_ids, xp_values, title="Cross-Play", vrange=vrange, valfmt=valfmt
     )
 
     pw_diff = sp_values - xp_values
@@ -486,7 +480,7 @@ def plot_mean_pairwise_comparison(plot_df,
         pw_diff,
         title="Difference",
         vrange=(np.nanmin(pw_diff), np.nanmax(pw_diff)),
-        valfmt=valfmt
+        valfmt=valfmt,
     )
 
     fig.suptitle(y_key)

@@ -24,7 +24,7 @@ def download_to_file(url: str, dest_file_path: str):
 
     Raises
     ------
-    posggym_agents.error.DownloadError: if error occured while trying to download file.
+    posggym_agents.error.DownloadError: if error occurred while trying to download file.
 
     """
     dest_dir = osp.dirname(dest_file_path)
@@ -75,7 +75,7 @@ def download_from_repo(file_path: str, rewrite_existing: bool = False):
     ------
     posggym_agents.error.InvalidFile: if file_path is not a valid posggym-agents package
         file.
-    posggym_agents.error.DownloadError: if error occured while trying to download file.
+    posggym_agents.error.DownloadError: if error occurred while trying to download file.
 
     """
     if osp.exists(file_path) and not rewrite_existing:

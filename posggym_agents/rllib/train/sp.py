@@ -37,7 +37,7 @@ def get_symmetric_sp_algorithm(
     """Get Rllib algorithm for self-play trained agents in symmetric env."""
     assert igraph.is_symmetric
 
-    # single algorithm so asign all of available gpu to it
+    # single algorithm so assign all of available gpu to it
     config.num_gpus = num_gpus
     config.num_gpus_per_trainer_worker = num_gpus
 

@@ -128,12 +128,8 @@ class EpisodeTracker(Tracker):
             if i in timestep.observations and not self._current_dones[i]:
                 self._current_steps[i] += 1
 
-            if (
-                not self._current_dones[i]
-                and (
-                    timestep.terminated.get(i, False)
-                    or timestep.truncated.get(i, False)
-                )
+            if not self._current_dones[i] and (
+                timestep.terminated.get(i, False) or timestep.truncated.get(i, False)
             ):
                 self._current_dones[i] = True
                 self._current_outcomes[i] = timestep.info.get("outcome", M.Outcome.NA)
@@ -153,7 +149,7 @@ class EpisodeTracker(Tracker):
                     outcome[i] = M.Outcome.NA
 
                 if outcome[i] == M.Outcome.NA:
-                    # incase outcome was recieved earlier in episode (i.e. agent
+                    # in case outcome was received earlier in episode (i.e. agent
                     # finished early)
                     outcome[i] = self._current_outcomes[i]
             self._outcomes.append(outcome)

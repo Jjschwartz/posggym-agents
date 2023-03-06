@@ -101,9 +101,9 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         Arguments
         ---------
         action: the last action performed, may be None if this is the first update
-        obs: the observation recieved, may be None if this is the first update and
+        obs: the observation received, may be None if this is the first update and
             the environment is action first.
-        state: the policy's state before action was performed and obs recieved
+        state: the policy's state before action was performed and obs received
 
         Returns
         -------
@@ -172,7 +172,7 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
 
         """
         state = self.get_initial_state()
-        for (a, o) in history:
+        for a, o in history:
             state["action"] = a
             state = self.get_next_state(o, state)
         return state
@@ -180,6 +180,6 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
     def close(self):
         """Close policy and perform any necessary cleanup.
 
-        Should be overriden in subclasses as necessary.
+        Should be overridden in subclasses as necessary.
         """
         pass

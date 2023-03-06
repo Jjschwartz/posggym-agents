@@ -16,12 +16,12 @@ def get_policy_id(env_id: str, policy_file_name: str) -> str:
 
 
 def load_rllib_policy_specs_from_files(
-        env_id: str,
-        policy_file_dir_path: str,
-        policy_file_names: List[str],
-        valid_agent_ids: Optional[List[AgentID]] = None,
-        nondeterministic: bool = False,
-        **kwargs
+    env_id: str,
+    policy_file_dir_path: str,
+    policy_file_names: List[str],
+    valid_agent_ids: Optional[List[AgentID]] = None,
+    nondeterministic: bool = False,
+    **kwargs,
 ) -> Dict[str, PolicySpec]:
     """Load policy specs for rllib policies from list of policy files.
 
@@ -48,6 +48,6 @@ def load_rllib_policy_specs_from_files(
             osp.join(policy_file_dir_path, file_name),
             valid_agent_ids=valid_agent_ids,
             nondeterministic=nondeterministic,
-            kwargs=kwargs
+            kwargs=kwargs,
         )
     return policy_specs

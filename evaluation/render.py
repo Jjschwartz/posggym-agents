@@ -13,7 +13,7 @@ import posggym_agents
 import posggym_agents.evaluation as eval_lib
 
 
-def main(args):    # noqa
+def main(args):  # noqa
     print("\n== Rendering Episodes ==")
     pprint(vars(args))
 
@@ -35,7 +35,7 @@ def main(args):    # noqa
     if args.seed is not None:
         env.reset(seed=args.seed)
         for i, policy in enumerate(policies):
-            policy.reset(seed=args.seed+i)
+            policy.reset(seed=args.seed + i)
 
     eval_lib.run_episode(
         env,
@@ -45,7 +45,7 @@ def main(args):    # noqa
         renderers=[eval_lib.EpisodeRenderer()],
         time_limit=None,
         logger=None,
-        writer=None
+        writer=None,
     )
 
     env.close()
@@ -60,26 +60,26 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--env_id", type=str,
-        help="ID of the environment to run experiment in."
+        "--env_id", type=str, help="ID of the environment to run experiment in."
     )
     parser.add_argument(
-        "-pids", "--policy_ids", type=str, nargs="+",
+        "-pids",
+        "--policy_ids",
+        type=str,
+        nargs="+",
         help=(
             "List of IDs of policies to compare, one for each agent. You can provide "
             "the IDs with or without the env ID part (before the '/')."
-        )
+        ),
     )
     parser.add_argument(
-        "--num_episodes", type=int, default=1000,
-        help="Number of episodes per experiment."
+        "--num_episodes",
+        type=int,
+        default=1000,
+        help="Number of episodes per experiment.",
     )
+    parser.add_argument("--seed", type=int, default=None, help="Environment seed.")
     parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Environment seed."
-    )
-    parser.add_argument(
-        "--render_mode", type=str, default="human",
-        help="The render mode to use."
+        "--render_mode", type=str, default="human", help="The render mode to use."
     )
     main(parser.parse_args())

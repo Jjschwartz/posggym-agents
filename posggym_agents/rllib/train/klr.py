@@ -66,7 +66,7 @@ def get_symmetric_klr_algorithm(
 
         train_policy_spec = ppo_policy_spec
         policy_spec_map = {train_policy_id: train_policy_spec}
-        for (policy_j_id, _) in connected_policies:
+        for policy_j_id, _ in connected_policies:
             _, k = pbt.parse_klr_policy_id(policy_j_id)
             policy_spec_j = random_policy_spec if k == -1 else ppo_policy_spec
             policy_spec_map[policy_j_id] = policy_spec_j
@@ -76,7 +76,7 @@ def get_symmetric_klr_algorithm(
             policies=policy_spec_map,
             policy_mapping_fn=policy_mapping_fn,
             policies_to_train=[train_policy_id],
-            policy_states_are_swappable=True
+            policy_states_are_swappable=True,
         )
 
         if logger_creator is None:
@@ -175,7 +175,7 @@ def get_asymmetric_klr_algorithm(
                 policy_mapping_fn=policy_mapping_fn,
                 policies_to_train=[train_policy_id],
                 # agents can have different action and obs spaces
-                policy_states_are_swappable=False
+                policy_states_are_swappable=False,
             )
 
             if logger_creator is None:
@@ -249,7 +249,7 @@ def train_klr_policy(
         "config": algorithm_config,
         "num_gpus": num_gpus,
         "logger_creator": None,
-        "run_serially": run_serially
+        "run_serially": run_serially,
     }
     if igraph.is_symmetric:
         algorithm_map = get_symmetric_klr_algorithm(**algorithm_kwargs)

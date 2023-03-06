@@ -19,6 +19,6 @@ for env_spec in sorted(registry.values(), key=lambda x: x.id):
         f"{env_id}/shortestpath-v0",
         PEShortestPathPolicy,
         valid_agent_ids=None,
-        nondeterministic=False
+        nondeterministic=False,
     )
     POLICY_SPECS.append(policy_spec)

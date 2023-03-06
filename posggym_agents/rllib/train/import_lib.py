@@ -53,7 +53,7 @@ def import_algorithm(
     checkpoint_dir_path = osp.join(algorithm_dir, checkpoints[-1])
 
     # Need to filter checkpoint file from the other files saved alongside
-    # the checkpoint (theres probably a better way to do this...)
+    # the checkpoint (there is probably a better way to do this...)
     checkpoint_files = [
         f
         for f in os.listdir(checkpoint_dir_path)
@@ -81,7 +81,7 @@ def import_algorithm(
     )
 
     if algorithm_args.algorithm_remote:
-        ray.get(algorithm.restore.remote(checkpoint_path))    # type: ignore
+        ray.get(algorithm.restore.remote(checkpoint_path))  # type: ignore
         return algorithm
 
     algorithm.restore(checkpoint_path)

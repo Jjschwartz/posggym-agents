@@ -122,7 +122,7 @@ class RllibPolicy(Policy[ActType, ObsType]):
         info_tm1: Dict[str, Any] = {}
         a_tp1, o_t = history[-1]
 
-        for (a_t, o_t) in history:
+        for a_t, o_t in history:
             a_tp1, h_tm1, info_tm1 = self._compute_action(o_t, h_tm1, a_t)
 
         h_t, info_t = h_tm1, info_tm1
@@ -195,14 +195,6 @@ def load_rllib_policy_spec(
         action_space = model.action_spaces[agent_id]
         obs_space = model.observation_spaces[agent_id]
         flat_obs_space: spaces.Box = spaces.flatten_space(obs_space)  # type: ignore
-
-        # TODO generalize this to other kinds of spaces
-        # og_gym_action_space = spaces.Discrete(action_space.n)
-        # og_gym_obs_space = spaces.Box(
-        #     flat_obs_space.low,
-        #     flat_obs_space.high,
-        #     dtype=flat_obs_space.dtype,  # type: ignore
-        # )
 
         ppo_policy = PPOTorchPolicy(
             flat_obs_space,

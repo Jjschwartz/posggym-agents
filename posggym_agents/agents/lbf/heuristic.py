@@ -80,7 +80,7 @@ class LBFHeuristicPolicy(Policy[LBFAction, LBFObs]):
         max_food_level: Optional[int] = None,
     ) -> Optional[Coord]:
         food_distances: Dict[int, List[Coord]] = {}
-        for (y, x, level) in food_obs:
+        for y, x, level in food_obs:
             if x == -1 or (max_food_level is not None and level > max_food_level):
                 continue
             distance = (agent_pos[0] - y) ** 2 + (agent_pos[1] - x) ** 2

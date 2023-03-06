@@ -67,4 +67,4 @@ class InvalidFile(Error):
 
 
 class DownloadError(Error):
-    """Raised when error occured while trying to download posggym-agents file."""
+    """Raised when error occurred while trying to download posggym-agents file."""

@@ -52,7 +52,7 @@ def get_symmetric_pairwise_exp_params(
     for i, (exp_seed, policies) in enumerate(
         product(
             range(num_seeds),
-            combinations_with_replacement(policy_ids, len(env.possible_agents))
+            combinations_with_replacement(policy_ids, len(env.possible_agents)),
         )
     ):
         exp_params = eval_lib.ExpParams(
@@ -74,7 +74,7 @@ def get_symmetric_pairwise_exp_params(
     return exp_params_list
 
 
-def main(args):    # noqa
+def main(args):  # noqa
     print("\n== Running Experiments ==")
     pprint(vars(args))
 
@@ -101,7 +101,7 @@ def main(args):    # noqa
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
         exp_args=vars(args),
-        root_save_dir=args.root_save_dir
+        root_save_dir=args.root_save_dir,
     )
 
     print("== All done ==")

@@ -35,7 +35,7 @@ def sync_policies(algorithms: RllibAlgorithmMap, igraph: pbt.InteractionGraph):
                 # Notes weights here is a dict from policy id to weights
                 # ref:
                 # https://docs.ray.io/en/releases-2.3.0/_modules/ray/rllib/algorithms/algorithm.html#Algorithm.get_weights
-                for (policy_j_id, weights) in other_agent_policies:
+                for policy_j_id, weights in other_agent_policies:
                     if isinstance(algorithm_k, ray.actor.ActorHandle):
                         algorithm_k.set_weights.remote(weights)
                         algorithm_k.sync_weights.remote()

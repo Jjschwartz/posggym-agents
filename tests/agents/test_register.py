@@ -55,9 +55,7 @@ def test_register(
     ],
 )
 def test_register_error(policy_id):
-    with pytest.raises(
-        pga.error.Error, match=f"^Malformed policy ID: {policy_id}"
-    ):
+    with pytest.raises(pga.error.Error, match=f"^Malformed policy ID: {policy_id}"):
         pga.register(policy_id, "no-entry-point")
 
 

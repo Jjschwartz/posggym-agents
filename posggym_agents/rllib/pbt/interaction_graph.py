@@ -35,7 +35,7 @@ class InteractionGraph:
     policy with 'pi_0' will be the same policy for every agent in the
     environment.
 
-    Otherwise, each agent has a seperate policies, e.g. the policy with ID
+    Otherwise, each agent has a separate policies, e.g. the policy with ID
     'pi_0' will correspond to a different policy for each agent.
 
     The graph stores policy state, which could be an actual policy or some other part

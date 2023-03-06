@@ -249,7 +249,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
         writer.write(statistics)
 
     except Exception as ex:
-        exp_logger.exception("Exception occured: %s", str(ex))
+        exp_logger.exception("Exception occurred: %s", str(ex))
         exp_logger.error(pformat(locals()))
         raise ex
     finally:

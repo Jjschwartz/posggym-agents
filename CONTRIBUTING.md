@@ -34,16 +34,25 @@ pip install -e .[testing]
 ### Type checking
 
 This project uses `mypy` for type checking. For instructions on installation see official [instructions](https://mypy.readthedocs.io/en/latest/getting_started.html#installing-and-running-mypy).
-Once `mypy` is installed it can be run locally by running ``mypy --package posggym-agents`` from the root project directory.
+Once `mypy` is installed it can be run locally by running ``mypy --package posggym-agents`` or using the pre-commit process ``pre-commit run --all-files`` from the root project directory.
 
-### Code style
+### Git hooks
 
-For code style posggym uses `black`. See the [black website](https://black.readthedocs.io/en/stable/) for install instructions.
+The CI will run several checks on the new code pushed to the POSGGym repository. These checks can also be run locally without waiting for the CI by following the steps below:
 
-### Docstrings
+1. [install `pre-commit`](https://pre-commit.com/#install),
+2. Install the Git hooks by running `pre-commit install`.
 
-For documentation this project uses `pydocstyle`.
+Once those two steps are done, the Git hooks will be run automatically at every new commit.
+The Git hooks can also be run manually with `pre-commit run --all-files`, and if needed they can be skipped (not recommended) with `git commit --no-verify`.
+
+**Note:** you may have to run `pre-commit run --all-files` manually a couple of times to make it pass when you commit, as each formatting tool will first format the code and fail the first time but should pass the second time.
+
+
+### Code style and docstring
+
+For code style posggym-agents uses `black`. See the [black website](https://black.readthedocs.io/en/stable/) for install instructions. For everything else, posggym-agents uses [ruff](https://github.com/charliermarsh/ruff).
 
 ### Running tests
 
-The project comes with a number of tests using [pytest](https://docs.pytest.org/en/latest/getting-started.html#install-pytest). These can be run locally with `pytest` from the `posggym-agents/tests` folder.
+The project comes with a number of tests (see `tests` directory) using [pytest](https://docs.pytest.org/en/latest/getting-started.html#install-pytest). These will be run for the whole project during pull requests. They can also be run locally with `pytest` from the project root folder.

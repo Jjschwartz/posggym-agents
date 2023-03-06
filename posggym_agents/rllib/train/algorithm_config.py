@@ -10,7 +10,7 @@ def get_default_ppo_training_config(env_id: str, seed: int, log_level: str):
         env_config={
             "env_id": env_id,
             "flatten_obs": True,
-        }
+        },
     )
     # Resource notes
     # trainer (or learner in version >2.3) worker = worker used for training NN
@@ -37,18 +37,18 @@ def get_default_ppo_training_config(env_id: str, seed: int, log_level: str):
         # greater than 0 will run the training on a single GPU on the head node, while
         # a value of 0 will run the training on head node CPU cores.
         # This value should be num_gpus
-        num_gpus_per_trainer_worker=1.0
+        num_gpus_per_trainer_worker=1.0,
     )
     config.rollouts(
-        # value of 1 uses a seperate rollout worker to the main update worker
+        # value of 1 uses a separate rollout worker to the main update worker
         num_rollout_workers=1,
         # Number of environments to evaluate vector-wise per worker. This enables model
         # inference batching, which can improve performance for inference bottlenecked
         # workloads.
         num_envs_per_worker=1,
-        rollout_fragment_length='auto',
+        rollout_fragment_length="auto",
         observation_filter="NoFilter",
-        batch_mode="truncate_episodes"
+        batch_mode="truncate_episodes",
     )
     config.training(
         gamma=0.999,
@@ -65,10 +65,8 @@ def get_default_ppo_training_config(env_id: str, seed: int, log_level: str):
             # Supported values are: "tanh", "relu", "swish" (or "silu"),
             # "linear" (or None).
             "fcnet_activation": "tanh",
-
             # Whether layers should be shared for the value function.
             "vf_share_layers": False,
-
             # == LSTM ==
             # Whether to wrap the model with an LSTM.
             "use_lstm": True,
@@ -97,19 +95,16 @@ def get_default_ppo_training_config(env_id: str, seed: int, log_level: str):
         vf_clip_param=1.0,
         grad_clip=5.0,
         kl_target=0.01,
-
     )
-    config.framework(
-        framework="torch"
-    )
+    config.framework(framework="torch")
     config.exploration(
         explore=True,
         exploration_config={
             "type": "StochasticSampling",
             # add some random timesteps to get agents away from initial "safe" starting
             # positions
-            "random_timesteps": 5
-        }
+            "random_timesteps": 5,
+        },
     )
     config.debugging(
         # default is "WARN". Options (in order of verbosity, most to least) are:
@@ -118,9 +113,7 @@ def get_default_ppo_training_config(env_id: str, seed: int, log_level: str):
         seed=seed,
         # disable by default since it can lead to many zombie processes when creating
         # lots of Algorithm instances
-        log_sys_usage=False
+        log_sys_usage=False,
     )
-    config.reporting(
-        metrics_num_episodes_for_smoothing=100
-    )
+    config.reporting(metrics_num_episodes_for_smoothing=100)
     return config

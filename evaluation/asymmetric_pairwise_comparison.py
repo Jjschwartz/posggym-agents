@@ -49,7 +49,7 @@ def get_asymmetric_pairwise_exp_params(
         for spec in policy_specs:
             valid_agent_ids = spec.valid_agent_ids
             if valid_agent_ids is None:
-                # valied for all agents
+                # valid for all agents
                 valid_agent_ids = env.possible_agents
             for i in valid_agent_ids:
                 policy_ids[i].append(spec.id)
@@ -108,7 +108,7 @@ def main(args):  # noqa
         exp_log_level=args.log_level,
         n_procs=args.n_procs,
         exp_args=vars(args),
-        root_save_dir=args.root_save_dir
+        root_save_dir=args.root_save_dir,
     )
 
     print("== All done ==")

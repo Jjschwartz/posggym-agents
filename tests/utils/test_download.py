@@ -30,10 +30,7 @@ def test_download_to_file():
 
 
 def test_bad_download_to_file():
-    with pytest.raises(
-        error.DownloadError,
-        match="Error while downloading file"
-    ):
+    with pytest.raises(error.DownloadError, match="Error while downloading file"):
         download.download_to_file(TEST_BAD_POLICY_FILE_URL, TEST_FILE_DEST)
         if osp.exists(TEST_FILE_DEST):
             # clean-up in case download worked for some reason

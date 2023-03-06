@@ -118,7 +118,7 @@ class Writer(abc.ABC):
 
 
 class NullWriter(Writer):
-    """Placholder Writer class that does nothing."""
+    """Placeholder Writer class that does nothing."""
 
     def write(self, statistics: AgentStatisticsMap):
         return
@@ -196,7 +196,7 @@ class ExperimentWriter(Writer):
     This logger handles storing of results after each episode of an experiment
     as well as the final summarized results.
 
-    The results are stored in two seperate files:
+    The results are stored in two separate files:
     - "exp_<exp_id>_episodes.csv": stores results for each episode
     - "exp_<exp_id>.csv": stores summary results for experiment
 
@@ -204,7 +204,7 @@ class ExperimentWriter(Writer):
     during experiments. This function takes a list of Tracker objects as input
     and writes a summary of the results so far to the summary results file.
     This function is useful for experiments that may take a long time to run or
-    could be interupted early.
+    could be interrupted early.
 
     """
 
