@@ -76,7 +76,6 @@ def standard_logger_creator(
 
 
 def get_algorithm(
-    env_id: str,
     algorithm_class,
     config: AlgorithmConfig,
     remote: bool,
@@ -94,10 +93,8 @@ def get_algorithm(
             num_gpus=config.num_gpus,
         )(algorithm_class)
         algorithm = algorithm_remote.remote(
-            env=env_id, config=config, logger_creator=logger_creator
+            config=config, logger_creator=logger_creator
         )
     else:
-        algorithm = algorithm_class(
-            env=env_id, config=config, logger_creator=logger_creator
-        )
+        algorithm = algorithm_class(config=config, logger_creator=logger_creator)
     return algorithm

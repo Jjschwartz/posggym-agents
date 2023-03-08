@@ -26,16 +26,26 @@ def default_asymmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):
     raise AssertionError
 
 
-def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
-    """Get Policy mapping fn from interactive graph.
+class IGraphPolicyMappingFn:
+    """A class which implements an Interactive Graph's a policy mapping function.
 
-    May not work as expected for envs with more than 2 agents when an Rllib
-    algorithm has more than a single policy to train.
+    Has the advantage of being pickleable, as opposed to using a wrapped function.
 
-    Double check before using this function in those cases.
+    May not work as expected for envs with more than 2 agents when an Rllib algorithm
+    has more than a single policy to train. Double check before using this function in
+    those cases.
+
     """
 
-    def symmetric_mapping_fn(agent_id, episode, worker, **kwargs):
+    def __init__(self, igraph: pbt.InteractionGraph):
+        self.igraph = igraph
+
+    def __call__(self, agent_id, episode, worker, **kwargs):
+        if self.igraph.is_symmetric:
+            return self.symmetric_mapping_fn(agent_id, episode, worker, **kwargs)
+        return self.asymmetric_mapping_fn(agent_id, episode, worker, **kwargs)
+
+    def symmetric_mapping_fn(self, agent_id, episode, worker, **kwargs):
         policies_to_train = [
             pid for pid in worker.policy_map if worker.is_policy_to_train(pid, None)
         ]
@@ -48,11 +58,11 @@ def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
 
         # since env is symmetric it doesn't matter which agent id is the train
         # agent, so we just set it to always be the first agent id
-        if agent_id == igraph.get_agent_ids()[0]:
+        if agent_id == self.igraph.get_agent_ids()[0]:
             return train_policy_id
-        return igraph.sample_policy(None, train_policy_id, None)[0]
+        return self.igraph.sample_policy(None, train_policy_id, None)[0]
 
-    def asymmetric_mapping_fn(agent_id, episode, worker, **kwargs):
+    def asymmetric_mapping_fn(self, agent_id, episode, worker, **kwargs):
         policies_to_train = [
             pid for pid in worker.policy_map if worker.is_policy_to_train(pid, None)
         ]
@@ -66,12 +76,7 @@ def get_igraph_policy_mapping_fn(igraph: pbt.InteractionGraph) -> Callable:
         train_agent_id = pbt.get_agent_id_from_policy_id(train_policy_id)
         if agent_id == train_agent_id:
             return train_policy_id
-
-        return igraph.sample_policy(train_agent_id, train_policy_id, agent_id)[0]
-
-    if igraph.is_symmetric:
-        return symmetric_mapping_fn
-    return asymmetric_mapping_fn
+        return self.igraph.sample_policy(train_agent_id, train_policy_id, agent_id)[0]
 
 
 def default_symmetric_policy_mapping_fn(agent_id, episode, worker, **kwargs):

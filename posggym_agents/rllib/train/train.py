@@ -1,16 +1,15 @@
 """Code for running training using rllib."""
 import os.path as osp
-from typing import Dict, Optional
+from typing import Dict, Optional, Type
 
 import ray
 from ray.tune.logger import pretty_print
+from ray.rllib.algorithms.algorithm import Algorithm
 
 from posggym_agents.rllib import pbt
-from posggym_agents.rllib.train.export_lib import export_algorithms_to_file
-from posggym_agents.rllib.train.import_lib import (
-    AlgorithmImportArgs,
-    import_igraph_algorithms,
-)
+from posggym_agents.rllib.train.algorithm import CustomPPOAlgorithm
+from posggym_agents.rllib.train.export_lib import export_igraph_algorithms
+from posggym_agents.rllib.train.import_lib import import_igraph_algorithms
 from posggym_agents.rllib.train.utils import RllibAlgorithmMap
 
 
@@ -112,13 +111,10 @@ def run_evaluation(algorithms: RllibAlgorithmMap, verbose: bool = True):
 
 def continue_training(
     policy_dir,
-    is_symmetric,
-    algorithm_class,
-    algorithms_remote: bool,
+    remote: bool,
     num_iterations: int,
     seed: Optional[int],
-    num_workers: int,
-    num_gpus: float,
+    algorithm_class: Optional[Type[Algorithm]] = None,
     save_policies: bool = True,
     verbose: bool = True,
 ):
@@ -128,20 +124,15 @@ def continue_training(
     1. ray has been initialized
     2. training environment has been registered with ray
     """
-    algorithm_args = AlgorithmImportArgs(
-        algorithm_class=algorithm_class,
-        algorithm_remote=algorithms_remote,
-        num_workers=num_workers,
-    )
+    if algorithm_class is None:
+        algorithm_class = CustomPPOAlgorithm
 
     igraph, algorithms = import_igraph_algorithms(
         igraph_dir=policy_dir,
-        env_is_symmetric=is_symmetric,
-        algorithm_args=algorithm_args,
-        policy_mapping_fn=None,
-        extra_config={},
+        algorithm_class=algorithm_class,
+        remote=remote,
         seed=seed,
-        num_gpus=num_gpus,
+        logger_creator=None,
     )
     igraph.display()
 
@@ -164,11 +155,11 @@ def continue_training(
         name_tokens.append(checkpoint)
         save_dir = "_".join(name_tokens)
 
-        export_dir = export_algorithms_to_file(
+        export_dir = export_igraph_algorithms(
             osp.dirname(osp.normpath(policy_dir)),
             igraph,
             algorithms,
-            algorithms_remote=algorithms_remote,
+            remote=remote,
             save_dir_name=save_dir,
         )
         print(f"{export_dir=}")

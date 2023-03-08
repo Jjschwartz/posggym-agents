@@ -317,27 +317,33 @@ class InteractionGraph:
             )
         return other_policies
 
-    def export_graph(self, export_dir: str, policy_export_fn: PolicyExportFn):
+    @staticmethod
+    def export_graph(
+        igraph: "InteractionGraph", export_dir: str, policy_export_fn: PolicyExportFn
+    ):
         """Export Interaction Graph to a local directory."""
         igraph_file = os.path.join(export_dir, IGRAPH_FILE_NAME)
+        igraph_output = {
+            "graph": igraph.graph,
+            "agent_ids": igraph.get_agent_ids(),
+            "symmetric": igraph.is_symmetric,
+        }
         with open(igraph_file, "w", encoding="utf-8") as fout:
-            json.dump(self._graph, fout)
+            json.dump(igraph_output, fout)
 
-        igraph_agent_id_file = os.path.join(export_dir, IGRAPH_AGENT_ID_FILE_NAME)
-        with open(igraph_agent_id_file, "w", encoding="utf-8") as fout:
-            json.dump(list(self._agent_ids), fout)
-
-        for agent_id, policy_map in self._policies.items():
+        for agent_id, policy_map in igraph.policies.items():
             agent_dir = os.path.join(export_dir, str(agent_id))
             os.mkdir(agent_dir)
 
             for policy_id, policy in policy_map.items():
                 policy_dir = os.path.join(agent_dir, str(policy_id))
                 os.mkdir(policy_dir)
-
                 policy_export_fn(agent_id, policy_id, policy, policy_dir)
 
-    def import_graph(self, import_dir: str, policy_import_fn: PolicyImportFn):
+    @staticmethod
+    def import_graph(
+        import_dir: str, policy_import_fn: PolicyImportFn, seed: Optional[int] = None
+    ) -> "InteractionGraph":
         """Import interaction graph from a local directory.
 
         Note, this assumes import directory was generated using the
@@ -345,14 +351,14 @@ class InteractionGraph:
         """
         igraph_file = os.path.join(import_dir, IGRAPH_FILE_NAME)
         with open(igraph_file, "r", encoding="utf-8") as fin:
-            self._graph = json.load(fin)
+            igraph_data = json.load(fin)
 
-        igraph_agent_id_file = os.path.join(import_dir, IGRAPH_AGENT_ID_FILE_NAME)
-        with open(igraph_agent_id_file, "r", encoding="utf-8") as fin:
-            self._agent_ids = set(json.load(fin))
+        igraph = InteractionGraph(igraph_data["symmetric"], seed)
+        igraph._graph = igraph_data["graph"]
+        igraph._agent_ids = set(igraph_data["agent_ids"])
 
         policies: Dict[AgentID, Dict[PolicyID, PolicyState]] = {}
-        for agent_id, policy_map in self._graph.items():
+        for agent_id, policy_map in igraph.graph.items():
             agent_dir = os.path.join(import_dir, str(agent_id))
             policies[agent_id] = {}
 
@@ -361,8 +367,8 @@ class InteractionGraph:
                 policies[agent_id][policy_id] = policy_import_fn(
                     agent_id, policy_id, policy_dir
                 )
-
-        self._policies = policies
+        igraph._policies = policies
+        return igraph
 
     def display(self):
         """Display the graph in human readable format."""

@@ -31,14 +31,9 @@ And the following to install dependencies for running tests:
 pip install -e .[testing]
 ```
 
-### Type checking
-
-This project uses `mypy` for type checking. For instructions on installation see official [instructions](https://mypy.readthedocs.io/en/latest/getting_started.html#installing-and-running-mypy).
-Once `mypy` is installed it can be run locally by running ``mypy --package posggym-agents`` or using the pre-commit process ``pre-commit run --all-files`` from the root project directory.
-
 ### Git hooks
 
-The CI will run several checks on the new code pushed to the POSGGym repository. These checks can also be run locally without waiting for the CI by following the steps below:
+The CI will run several checks on the new code pushed to the repository. These checks can also be run locally without waiting for the CI by following the steps below:
 
 1. [install `pre-commit`](https://pre-commit.com/#install),
 2. Install the Git hooks by running `pre-commit install`.
@@ -48,6 +43,10 @@ The Git hooks can also be run manually with `pre-commit run --all-files`, and if
 
 **Note:** you may have to run `pre-commit run --all-files` manually a couple of times to make it pass when you commit, as each formatting tool will first format the code and fail the first time but should pass the second time.
 
+### Type checking
+
+This project uses `mypy` for type checking. For instructions on installation see official [instructions](https://mypy.readthedocs.io/en/latest/getting_started.html#installing-and-running-mypy).
+Once `mypy` is installed it can be run locally by running ``mypy --package posggym-agents`` or using the pre-commit process ``pre-commit run --all-files`` from the root project directory.
 
 ### Code style and docstring
 

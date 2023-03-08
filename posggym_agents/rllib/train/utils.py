@@ -1,5 +1,5 @@
 """Utility functions, classes, and types for rllib training."""
-from typing import Any, Dict, Sequence, Union
+from typing import Dict
 
 from ray import rllib
 from ray.tune.registry import register_env
@@ -40,27 +40,3 @@ def posggym_registered_env_creator(config):
 def register_posggym_env(env_id: str):
     """Register posggym env with Ray."""
     register_env(env_id, posggym_registered_env_creator)
-
-
-def nested_remove(old: Dict, to_remove: Sequence[Union[Any, Sequence[Any]]]):
-    """Remove items from an existing dict, handling nested sequences."""
-    for keys in to_remove:
-        # specify tuple/list since a str is also a sequence
-        if not isinstance(keys, (tuple, list)):
-            del old[keys]
-            continue
-
-        sub_old = old
-        for k in keys[:-1]:
-            sub_old = sub_old[k]
-        del sub_old[keys[-1]]
-
-
-def nested_update(old: Dict, new: Dict):
-    """Update existing dict inplace with a new dict, handling nested dicts."""
-    for k, v in new.items():
-        if k not in old or not isinstance(v, dict):
-            old[k] = v
-        else:
-            # assume old[k] is also a dict
-            nested_update(old[k], v)

@@ -16,8 +16,8 @@ from posggym_agents.rllib.train.algorithm import (
     get_algorithm,
     standard_logger_creator,
 )
-from posggym_agents.rllib.train.export_lib import export_algorithms_to_file
-from posggym_agents.rllib.train.policy_mapping import get_igraph_policy_mapping_fn
+from posggym_agents.rllib.train.export_lib import export_igraph_algorithms
+from posggym_agents.rllib.train.policy_mapping import IGraphPolicyMappingFn
 from posggym_agents.rllib.train.train import run_training, sync_policies
 from posggym_agents.rllib.train.utils import (
     RllibAlgorithmMap,
@@ -46,14 +46,13 @@ def get_symmetric_sp_algorithm(
     obs_space = env.observation_space[agent_id]
     act_space = env.action_space[agent_id]
 
-    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
     train_policy_id = igraph.get_agent_policy_ids(None)[0]
 
     config.multi_agent(
         policies={
             train_policy_id: PolicySpec(PPOTorchPolicy, obs_space, act_space, {})
         },
-        policy_mapping_fn=policy_mapping_fn,
+        policy_mapping_fn=IGraphPolicyMappingFn(igraph),  # type: ignore
         policies_to_train=[train_policy_id],
         policy_states_are_swappable=True,
     )
@@ -62,7 +61,6 @@ def get_symmetric_sp_algorithm(
         logger_creator = standard_logger_creator(env_id, "sp", seed, train_policy_id)
 
     algorithm = get_algorithm(
-        env_id,
         algorithm_class=CustomPPOAlgorithm,
         config=config,
         remote=True,
@@ -93,8 +91,6 @@ def get_asymmetric_sp_algorithm(
     # assumes a single policy for each agent
     assert all(len(igraph.get_agent_policy_ids(i)) == 1 for i in igraph._agent_ids)
 
-    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
-
     policy_spec_map = {}
     for i in igraph.get_agent_ids():
         policy_id = igraph.get_agent_policy_ids(i)[0]
@@ -105,7 +101,7 @@ def get_asymmetric_sp_algorithm(
 
     config.multi_agent(
         policies=policy_spec_map,
-        policy_mapping_fn=policy_mapping_fn,
+        policy_mapping_fn=IGraphPolicyMappingFn(igraph),  # type: ignore
         # may have difference act or obs spaces
         policy_states_are_swappable=False,
     )
@@ -128,7 +124,6 @@ def get_asymmetric_sp_algorithm(
             )
 
         algorithm = get_algorithm(
-            env_id,
             algorithm_class=CustomPPOAlgorithm,
             config=config,
             remote=True,
@@ -193,11 +188,11 @@ def train_sp_policy(
             os.makedirs(parent_dir)
 
         save_dir = f"train_sp_{env_id}_seed{seed}"
-        export_dir = export_algorithms_to_file(
+        export_dir = export_igraph_algorithms(
             parent_dir,
             igraph,
             algorithm_map,
-            algorithms_remote=True,
+            remote=True,
             save_dir_name=save_dir,
         )
         print(f"{export_dir=}")

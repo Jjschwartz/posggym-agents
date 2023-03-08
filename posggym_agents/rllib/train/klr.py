@@ -12,8 +12,8 @@ from ray.tune.registry import register_env
 
 from posggym_agents.config import BASE_RESULTS_DIR
 from posggym_agents.rllib import pbt
-from posggym_agents.rllib.train.export_lib import export_algorithms_to_file
-from posggym_agents.rllib.train.policy_mapping import get_igraph_policy_mapping_fn
+from posggym_agents.rllib.train.export_lib import export_igraph_algorithms
+from posggym_agents.rllib.train.policy_mapping import IGraphPolicyMappingFn
 from posggym_agents.rllib.train.train import run_training, sync_policies
 from posggym_agents.rllib.train.algorithm import (
     CustomPPOAlgorithm,
@@ -48,8 +48,6 @@ def get_symmetric_klr_algorithm(
     config.num_gpus = num_gpus_per_algorithm
     config.num_gpus_per_trainer_worker = num_gpus_per_algorithm
 
-    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
-
     # obs and action spaces are the same for all agents for symmetric envs
     agent_id = list(env.get_agent_ids())[0]
     obs_space = env.observation_space[agent_id]
@@ -74,7 +72,7 @@ def get_symmetric_klr_algorithm(
         policy_config = config.copy(copy_frozen=False)
         policy_config.multi_agent(
             policies=policy_spec_map,
-            policy_mapping_fn=policy_mapping_fn,
+            policy_mapping_fn=IGraphPolicyMappingFn(igraph),  # type: ignore
             policies_to_train=[train_policy_id],
             policy_states_are_swappable=True,
         )
@@ -85,7 +83,6 @@ def get_symmetric_klr_algorithm(
             )
 
         algorithm_k = get_algorithm(
-            env_id,
             algorithm_class=CustomPPOAlgorithm,
             config=policy_config,
             remote=remote,
@@ -129,8 +126,6 @@ def get_asymmetric_klr_algorithm(
     config.num_gpus = num_gpus_per_algorithm
     config.num_gpus_per_trainer_worker = num_gpus_per_algorithm
 
-    policy_mapping_fn = get_igraph_policy_mapping_fn(igraph)
-
     agent_ppo_policy_specs = {
         i: PolicySpec(
             PPOTorchPolicy, env.observation_space[str(i)], env.action_space[str(i)], {}
@@ -172,7 +167,7 @@ def get_asymmetric_klr_algorithm(
             policy_config = config.copy(copy_frozen=False)
             policy_config.multi_agent(
                 policies=policy_spec_map,
-                policy_mapping_fn=policy_mapping_fn,
+                policy_mapping_fn=IGraphPolicyMappingFn(igraph),  # type: ignore
                 policies_to_train=[train_policy_id],
                 # agents can have different action and obs spaces
                 policy_states_are_swappable=False,
@@ -184,7 +179,6 @@ def get_asymmetric_klr_algorithm(
                 )
 
             algorithm_k = get_algorithm(
-                env_id,
                 algorithm_class=CustomPPOAlgorithm,
                 config=policy_config,
                 remote=remote,
@@ -267,11 +261,11 @@ def train_klr_policy(
         save_dir = f"train_klr_{env_id}_seed{seed}_k{k}"
         if best_response:
             save_dir += "_br"
-        export_dir = export_algorithms_to_file(
+        export_dir = export_igraph_algorithms(
             parent_dir,
             igraph,
             algorithm_map,
-            algorithms_remote=not run_serially,
+            remote=not run_serially,
             save_dir_name=save_dir,
         )
         print(f"{export_dir=}")
