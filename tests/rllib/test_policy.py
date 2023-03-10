@@ -6,14 +6,16 @@ import shutil
 import posggym
 
 import posggym_agents.agents.driving_14x14roundabout_n2_v0 as driving_agents
-from posggym_agents.agents.utils import get_policy_id
-from posggym_agents.rllib import load_rllib_policy_spec
+from posggym_agents.agents.utils import get_policy_name
+from posggym_agents.rllib import get_rllib_policy_entry_point
 from posggym_agents.utils import download
 
 
 TEST_ENV_ID = driving_agents.ENV_ID
+TEST_ENV_ARGS = driving_agents.ENV_ARGS
 TEST_POLICY_FILE_NAME = driving_agents.POLICY_FILES[0]
-TEST_POLICY_ID = get_policy_id(TEST_ENV_ID, TEST_POLICY_FILE_NAME)
+TEST_POLICY_NAME = get_policy_name(TEST_POLICY_FILE_NAME)
+TEST_POLICY_VERSION = 0
 TEST_POLICY_FILE = osp.join(driving_agents.BASE_AGENT_DIR, TEST_POLICY_FILE_NAME)
 
 
@@ -27,17 +29,10 @@ def test_load_rllib_policy_spec_with_downloading():
             backup_file = TEST_POLICY_FILE + ".bk"
             shutil.move(TEST_POLICY_FILE, backup_file)
 
-        spec = load_rllib_policy_spec(
-            TEST_POLICY_ID,
-            TEST_POLICY_FILE,
-            valid_agent_ids=None,
-            nondeterministic=True,
-        )
+        rllib_pi_entry_point = get_rllib_policy_entry_point(TEST_POLICY_FILE)
 
-        env = posggym.make(TEST_ENV_ID)
-        pi = spec.entry_point(
-            env.model, env.possible_agents[0], spec.id, **spec.kwargs.copy()
-        )
+        env = posggym.make(TEST_ENV_ID, **TEST_ENV_ARGS)
+        pi = rllib_pi_entry_point(env.model, env.possible_agents[0], TEST_POLICY_NAME)
 
         pi.reset()
         obs, _ = env.reset()
@@ -55,14 +50,10 @@ def test_load_rllib_policy_spec_from_existing_file():
         # ensure file is already downloaded
         download.download_from_repo(TEST_POLICY_FILE)
 
-    spec = load_rllib_policy_spec(
-        TEST_POLICY_ID, TEST_POLICY_FILE, valid_agent_ids=None, nondeterministic=True
-    )
+    rllib_pi_entry_point = get_rllib_policy_entry_point(TEST_POLICY_FILE)
 
-    env = posggym.make(TEST_ENV_ID)
-    pi = spec.entry_point(
-        env.model, env.possible_agents[0], spec.id, **spec.kwargs.copy()
-    )
+    env = posggym.make(TEST_ENV_ID, **TEST_ENV_ARGS)
+    pi = rllib_pi_entry_point(env.model, env.possible_agents[0], TEST_POLICY_NAME)
 
     pi.reset()
     obs, _ = env.reset()

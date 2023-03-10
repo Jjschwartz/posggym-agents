@@ -14,26 +14,28 @@ from posggym_agents.agents.registration import PolicySpec
 from tests.conftest import env_name_prefix
 
 
-def try_make_policy(policy_spec: PolicySpec) -> Optional[pga.Policy]:
+def try_make_policy(spec: PolicySpec) -> Optional[pga.Policy]:
     """Tries to make the policy showing if it is possible."""
     try:
-        if policy_spec.env_id is None:
+        if spec.env_id is None:
             env = posggym.make("MultiAccessBroadcastChannel-v0")
+        elif spec.env_args is None:
+            env = posggym.make(spec.env_id)
         else:
-            env = posggym.make(policy_spec.env_id)
+            env = posggym.make(spec.env_id, **spec.env_args)
 
-        if policy_spec.valid_agent_ids:
-            agent_id = policy_spec.valid_agent_ids[0]
+        if spec.valid_agent_ids:
+            agent_id = spec.valid_agent_ids[0]
         else:
             agent_id = env.possible_agents[0]
 
-        return pga.make(policy_spec, env.model, agent_id)
+        return pga.make(spec, env.model, agent_id)
     except (
         ImportError,
         posggym.error.DependencyNotInstalled,
         posggym.error.MissingArgument,
     ) as e:
-        pga.logger.warn(f"Not testing {policy_spec.id} due to error: {e}")
+        pga.logger.warn(f"Not testing {spec.id} due to error: {e}")
     return None
 
 

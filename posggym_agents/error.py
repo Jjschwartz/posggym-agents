@@ -23,6 +23,10 @@ class EnvIDNotFound(UnregisteredPolicy):
     """Raised when user requests policy from registry with env-id that doesn't exist."""
 
 
+class EnvArgsIDNotFound(UnregisteredPolicy):
+    """Raised when user requests policy from registry with env-args that don't exist."""
+
+
 class NameNotFound(UnregisteredPolicy):
     """Raised when user requests policy from registry where name doesn't exist."""
 

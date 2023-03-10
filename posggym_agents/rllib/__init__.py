@@ -1,7 +1,7 @@
 from posggym_agents.rllib.policy import (
     PPORllibPolicy,
     RllibPolicy,
-    load_rllib_policy_spec,
+    get_rllib_policy_entry_point,
 )
 from posggym_agents.rllib.preprocessors import (
     ObsPreprocessor,

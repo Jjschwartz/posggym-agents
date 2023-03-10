@@ -4,7 +4,8 @@ import os.path as osp
 from posggym_agents.agents.utils import load_rllib_policy_specs_from_files
 
 
-ENV_ID = "PursuitEvasion-8x8-v0"
+ENV_ID = "PursuitEvasion-v0"
+ENV_ARGS = {"grid": "8x8"}
 BASE_DIR = osp.dirname(osp.abspath(__file__))
 BASE_AGENT_DIR = osp.join(BASE_DIR, "agents")
 
@@ -91,9 +92,11 @@ POLICY_SPECS = {}
 for agent_id in POLICY_FILES:
     POLICY_SPECS.update(
         load_rllib_policy_specs_from_files(
-            ENV_ID,
-            BASE_AGENT_DIR,
-            POLICY_FILES[agent_id],
+            env_id=ENV_ID,
+            env_args=ENV_ARGS,
+            policy_file_dir_path=BASE_AGENT_DIR,
+            policy_file_names=POLICY_FILES[agent_id],
+            version=0,
             valid_agent_ids=[agent_id],
             nondeterministic=True,
         )

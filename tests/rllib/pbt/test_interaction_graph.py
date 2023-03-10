@@ -27,10 +27,9 @@ def test_export_import(symmetric):
         return policy
 
     export_dir = tempfile.mkdtemp()
-    igraph.export_graph(export_dir, export_fn)
+    pbt.InteractionGraph.export_graph(igraph, export_dir, export_fn)
 
-    new_igraph = pbt.InteractionGraph(symmetric, seed=None)
-    new_igraph.import_graph(export_dir, import_fn)
+    new_igraph = pbt.InteractionGraph.import_graph(export_dir, import_fn, seed=None)
 
     TestCase().assertDictEqual(igraph.policies, new_igraph.policies)
     TestCase().assertDictEqual(igraph.graph, new_igraph.graph)

@@ -12,7 +12,7 @@ import importlib
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Protocol, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Protocol, Tuple, TYPE_CHECKING
 
 from posggym_agents import error, logger
 
@@ -21,11 +21,11 @@ if TYPE_CHECKING:
     from posggym_agents.policy import Policy
 
 
-# [env-name/](policy-id)-v(version)
-# env-name is group 1, policy_id is group 2, version is group 3
+# [env_id/][env_args_id/](policy_id)-v(version)
+# env_id is group 1, env_args_id is group 2. policy_id is group 2, version is group 3
 POLICY_ID_RE: re.Pattern = re.compile(
-    # r"^(?:[\w:-]+\/)?([\w:.-]+)-v(\d+)$")
-    r"^(?:(?P<env_id>[\w:-]+)\/)?(?:(?P<pi_name>[\w:.-]+?))(?:-v(?P<version>\d+))?$"
+    r"^((?:(?P<env_id>[\w:-]+)\/)?(?:(?P<env_args_id>[\S]+)\/)?)?"
+    r"(?:(?P<pi_name>[\w:.-]+?))(?:-v(?P<version>\d+))?$"
 )
 
 
@@ -56,12 +56,12 @@ def load(name: str) -> PolicyEntryPoint:
     return fn
 
 
-def parse_policy_id(policy_id: str) -> Tuple[str | None, str, int | None]:
+def parse_policy_id(policy_id: str) -> Tuple[str | None, str | None, str, int | None]:
     """Parse policy ID string format.
 
-    env-name is group 1, policy-name is group 2, version is group 3
+    env_id is group 1, env_args_id is group 2. policy_id is group 2, version is group 3
 
-    [env-name/](policy-name)-v(version)
+    [env_id/][env_args_id/](policy_id)-v(version)
 
     Arguments
     ---------
@@ -70,6 +70,7 @@ def parse_policy_id(policy_id: str) -> Tuple[str | None, str, int | None]:
     Returns
     -------
     env_id: The environment ID
+    env_args_id: ID string of environment arguments
     pi_name: The policy name
     version: The policy version
 
@@ -81,18 +82,29 @@ def parse_policy_id(policy_id: str) -> Tuple[str | None, str, int | None]:
     match = POLICY_ID_RE.fullmatch(policy_id)
     if not match:
         raise error.Error(
-            f"Malformed policy ID: {policy_id}. (Currently all IDs must be of the "
-            "form [env-id/](policy-name)-v(version) (env-id may be optional, "
-            "depending on the policy))."
+            f"Malformed policy ID: {policy_id}. Currently all IDs must be of the "
+            "form [env_id/][env_args_id/](policy_name)-v(version) (env_id and "
+            "env_args_id may be optional, depending on the policy)."
         )
-    env_id, pi_name, version = match.group("env_id", "pi_name", "version")
+    env_id, env_args_id, pi_name, version = match.group(
+        "env_id", "env_args_id", "pi_name", "version"
+    )
+    if env_args_id is not None and env_id is None:
+        raise error.Error(
+            f"Malformed policy ID: {policy_id}. env_args_id is only valid if a valid "
+            "if a valid env_id if included in the policy ID. Did not find valid env_id "
+            f"and got env_args_id: {env_args_id}. Check env_id is correct."
+        )
+
     if version is not None:
         version = int(version)
 
-    return env_id, pi_name, version
+    return env_id, env_args_id, pi_name, version
 
 
-def get_policy_id(env_id: str | None, policy_name: str, version: int | None) -> str:
+def get_policy_id(
+    env_id: str | None, env_args_id: str | None, policy_name: str, version: int | None
+) -> str:
     """Get the full policy ID given a name and (optional) version and env-name.
 
     Inverse of :meth:`parse_policy_id`.
@@ -100,6 +112,7 @@ def get_policy_id(env_id: str | None, policy_name: str, version: int | None) -> 
     Arguments
     ---------
     env_id: The environment ID
+    env_args_id: ID string of environment arguments
     policy_name: The policy name
     version: The policy version
 
@@ -108,12 +121,42 @@ def get_policy_id(env_id: str | None, policy_name: str, version: int | None) -> 
     policy_id: The policy id
 
     """
+    if env_args_id is not None and env_id is None:
+        raise error.Error(
+            "Cannot create policy ID. Must include env_id if env_args_id is part of "
+            "the policy ID."
+        )
+
     full_name = policy_name
     if version is not None:
         full_name += f"-v{version}"
+    if env_args_id is not None:
+        full_name = env_args_id + "/" + full_name
     if env_id is not None:
         full_name = env_id + "/" + full_name
     return full_name
+
+
+def get_env_args_id(env_args: Dict[str, Any]) -> str:
+    """Get string representation of environment keyword arguments.
+
+    Converts keyword dictionary {k1: v1, k2: v2, k3: v3} into a string:
+
+        k1=v1-k2=v2-k3=v3
+
+    Note we assume keywords are valid python variable names and so do not contain
+    any hyphen '-' characters.
+
+    Arguments
+    ---------
+    env_args: environment keyword arguments
+
+    Returns
+    -------
+    env_args_id: string representation of the envrinment keyword arguments.
+
+    """
+    return ("-".join(f"{k}={v}" for k, v in env_args.items())).replace(" ", "")
 
 
 @dataclass
@@ -125,20 +168,36 @@ class PolicySpec:
 
     Arguments
     ---------
-    id: The official policy ID of the agent policy
+    policy_name: The name of the policy
     entry_point: The Python entrypoint for initializing an instance of the agent policy.
         Must be a Callable with signature matching `PolicyEntryPoint` or a string
         defining where the entry point function can be imported
         (e.g. module.name:Class).
+    version: the policy version
+    env_id: Optional ID of the posggym environment that the policy is for.
+    env_args: Optional keywords arguments for the environment that the policy is for (if
+        it is a environment specific policy). If None then assumes policy can be used
+        for the environment with any arguments.
     valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
         None then assumes policy can be used for any agent in the environment.
     nondeterministic: Whether this policy is non-deterministic even after seeding.
     kwargs: Additional kwargs, if any, to pass to the agent initializing
 
+    Additional Attributes
+    ---------------------
+    id: The unique policy identifier made from the env_id, env_args, policy_name, and
+        version. Is of the form.
+    env_args_id: String representation of the env_args
+
     """
 
-    id: str
+    policy_name: str
     entry_point: PolicyEntryPoint | str
+    version: int | None = field(default=None)
+
+    # Environment attributes
+    env_id: str | None = field(default=None)
+    env_args: Dict[str, Any] | None = field(default=None)
 
     # Policy attributes
     valid_agent_ids: List[M.AgentID] | None = field(default=None)
@@ -148,17 +207,26 @@ class PolicySpec:
     kwargs: Dict = field(default_factory=dict)
 
     # post-init attributes
-    env_id: str | None = field(init=False)
-    policy_name: str = field(init=False)
-    version: int | None = field(init=False)
+    env_args_id: str | None = field(init=False)
+    # the unique identifier for the policy spec
+    id: str = field(init=False)
 
     def __post_init__(self):
-        """Extract the namespace, name and version from id.
+        """Generate unique spec ID.
 
         Is called after spec is created.
         """
-        # Initialize env_id, policy_name, version
-        self.env_id, self.policy_name, self.version = parse_policy_id(self.id)
+        if self.env_args is not None:
+            self.env_args_id = get_env_args_id(self.env_args)
+        else:
+            self.env_args_id = None
+
+        # the unique ID for the policy spec
+        self.id = get_policy_id(
+            self.env_id, self.env_args_id, self.policy_name, self.version
+        )
+        # check id is valid
+        parse_policy_id(self.id)
 
         if isinstance(self.valid_agent_ids, list) and len(self.valid_agent_ids) == 0:
             raise error.RegistrationError(
@@ -167,27 +235,48 @@ class PolicySpec:
             )
 
 
-def _check_env_id_exists(env_id: str | None):
+def _check_env_id_exists(env_id: str | None, env_args_id: str | None):
     """Check if a env ID exists. If it doesn't, print a helpful error message."""
     if env_id is None:
         return
+
     env_ids = {spec_.env_id for spec_ in registry.values() if spec_.env_id is not None}
-    if env_id in env_ids:
+    if env_id not in env_ids:
+        suggestion = (
+            difflib.get_close_matches(env_id, env_ids, n=1)
+            if len(env_ids) > 0
+            else None
+        )
+        suggestion_msg = (
+            f"Did you mean: `{suggestion[0]}`?"
+            if suggestion
+            else f"Have you installed the proper package for {env_id}?"
+        )
+        raise error.EnvIDNotFound(
+            f"Environment ID {env_id} not found. {suggestion_msg}"
+        )
+
+    if env_args_id is None:
         return
+    env_args_ids = {
+        spec_.env_args_id
+        for spec_ in registry.values()
+        if (spec_.env_id == env_id and spec_.env_args_id is not None)
+    }
+    if env_args_id not in env_args_ids:
+        suggestion = (
+            difflib.get_close_matches(env_args_id, env_args_ids, n=1)
+            if len(env_args_ids) > 0
+            else None
+        )
+        suggestion_msg = f"Did you mean: `{suggestion[0]}`?" if suggestion else ""
+        raise error.EnvArgsIDNotFound(
+            f"Environment Arguments {env_args_id} for environment ID {env_id} not "
+            f"found. {suggestion_msg}"
+        )
 
-    suggestion = (
-        difflib.get_close_matches(env_id, env_ids, n=1) if len(env_ids) > 0 else None
-    )
-    suggestion_msg = (
-        f"Did you mean: `{suggestion[0]}`?"
-        if suggestion
-        else f"Have you installed the proper package for {env_id}?"
-    )
 
-    raise error.EnvIDNotFound(f"Environment ID {env_id} not found. {suggestion_msg}")
-
-
-def _check_name_exists(env_id: str | None, policy_name: str):
+def _check_name_exists(env_id: str | None, env_args_id: str | None, policy_name: str):
     """Check if policy exists for given env id. If not, print helpful error message."""
     # check if policy_name matches a generic policy
     names = {
@@ -195,20 +284,21 @@ def _check_name_exists(env_id: str | None, policy_name: str):
         for spec_ in registry.values()
         if spec_.env_id is None
     }
-
     if policy_name in names.values():
         return
-    else:
-        # check env specific policies
-        _check_env_id_exists(env_id)
-        names = {
-            spec_.policy_name.lower(): spec_.policy_name
-            for spec_ in registry.values()
-            if spec_.env_id == env_id
-        }
 
-        if policy_name in names.values():
-            return
+    # check env specific policies
+    _check_env_id_exists(env_id, env_args_id)
+    names = {
+        spec_.policy_name.lower(): spec_.policy_name
+        for spec_ in registry.values()
+        if (
+            (spec_.env_id == env_id)
+            and (env_args_id is None or spec_.env_args_id == env_args_id)
+        )
+    }
+    if policy_name in names.values():
+        return
 
     suggestion = difflib.get_close_matches(policy_name.lower(), names, n=1)
     env_id_msg = f" for env ID {env_id}" if env_id else ""
@@ -219,7 +309,9 @@ def _check_name_exists(env_id: str | None, policy_name: str):
     )
 
 
-def _check_version_exists(env_id: str | None, policy_name: str, version: int | None):
+def _check_version_exists(
+    env_id: str | None, env_args_id: str | None, policy_name: str, version: int | None
+):
     """Check if policy version exists for env ID. Print helpful error message if not.
 
     This is a complete test whether an policy ID is valid, and will provide the best
@@ -228,6 +320,7 @@ def _check_version_exists(env_id: str | None, policy_name: str, version: int | N
     Arguments
     ---------
     env_id: The environment ID
+    env_args_ud: The ID of the environment keyword arguments
     policy_name: The policy name
     version: The policy version
 
@@ -238,27 +331,30 @@ def _check_version_exists(env_id: str | None, policy_name: str, version: int | N
     VersionNotFound: The ``version`` used doesn't exist
 
     """
-    if get_policy_id(env_id, policy_name, version) in registry:
+    if get_policy_id(env_id, env_args_id, policy_name, version) in registry:
         return
 
-    _check_name_exists(env_id, policy_name)
+    _check_name_exists(env_id, env_args_id, policy_name)
     if version is None:
         return
 
     message = (
         f"Policy version `v{version}` for policy "
-        f"`{get_policy_id(env_id, policy_name, None)}` doesn't exist."
+        f"`{get_policy_id(env_id, env_args_id, policy_name, None)}` doesn't exist."
     )
 
     policy_specs = [
         spec_
         for spec_ in registry.values()
-        if spec_.env_id == env_id and spec_.policy_name == policy_name
+        if (
+            spec_.env_id == env_id
+            and spec_.env_args_id == env_args_id
+            and spec_.policy_name == policy_name
+        )
     ]
     policy_specs = sorted(policy_specs, key=lambda spec_: int(spec_.version or -1))
 
     default_spec = [spec_ for spec_ in policy_specs if spec_.version is None]
-
     if default_spec:
         message += f" It provides the default version {default_spec[0].id}`."
         if len(policy_specs) == 1:
@@ -281,19 +377,24 @@ def _check_version_exists(env_id: str | None, policy_name: str, version: int | N
     if version < latest_spec.version:
         raise error.DeprecatedPolicy(
             f"Policy version v{version} for "
-            f"`{get_policy_id(env_id, policy_name, None)}` "
+            f"`{get_policy_id(env_id, env_args_id, policy_name, None)}` "
             f"is deprecated. Please use `{latest_spec.id}` instead."
         )
 
 
-def find_highest_version(env_id: str | None, policy_name: str) -> int | None:
+def find_highest_version(
+    env_id: str | None, env_args_id: str | None, policy_name: str
+) -> int | None:
     """Finds the highest registered version of the policy in the registry."""
     version: list[int] = [
         spec_.version
         for spec_ in registry.values()
-        if spec_.env_id == env_id
-        and spec_.policy_name == policy_name
-        and spec_.version is not None
+        if (
+            spec_.env_id == env_id
+            and spec_.env_args_id == env_args_id
+            and spec_.policy_name == policy_name
+            and spec_.version is not None
+        )
     ]
     return max(version, default=None)
 
@@ -312,9 +413,12 @@ def _check_spec_register(spec: PolicySpec):
         (
             spec_
             for spec_ in registry.values()
-            if spec_.env_id == spec.env_id
-            and spec_.policy_name == spec.policy_name
-            and spec_.version is not None
+            if (
+                spec_.env_id == spec.env_id
+                and spec_.env_args_id == spec.env_args_id
+                and spec_.policy_name == spec.policy_name
+                and spec_.version is not None
+            )
         ),
         key=lambda spec_: int(spec_.version),  # type: ignore
         default=None,
@@ -324,9 +428,12 @@ def _check_spec_register(spec: PolicySpec):
         (
             spec_
             for spec_ in registry.values()
-            if spec_.env_id == spec.env_id
-            and spec_.policy_name == spec.policy_name
-            and spec_.version is None
+            if (
+                spec_.env_id == spec.env_id
+                and spec_.env_args_id == spec.env_args_id
+                and spec_.policy_name == spec.policy_name
+                and spec_.version is None
+            )
         ),
         None,
     )
@@ -376,28 +483,25 @@ def get_all_env_policies(
 
 
 def register(
-    id: str,
+    policy_name: str,
     entry_point: PolicyEntryPoint | str,
+    version: int | None = None,
+    env_id: str | None = None,
+    env_args: Dict[str, Any] | None = None,
     valid_agent_ids: List[M.AgentID] | None = None,
     nondeterministic: bool = False,
     **kwargs,
 ):
     """Register a policy with posggym-agents.
 
-    The `id` parameter corresponds to the unique identifier of the policy, with the
-    syntax as follows:
-
-        `(env-id)/(policy-name)-v(version)`
-
-    where `env-id` is optional if the policy is valid for all environments
-    (e.g. the uniform random policy).
-
-    It takes arbitrary keyword arguments, which are passed to the `PolicySpec`
-    constructor.
-
     Arguments
     ---------
-    id: The policy id
+    policy_name: The name of the policy
+    env_id: Optional ID of the posggym environment that the policy is for.
+    version: the policy version
+    env_args: Optional keywords arguments for the environment that the policy is for (if
+        it is a environment specific policy). If None then assumes policy can be used
+        for the environment with any arguments.
     entry_point: The entry point for creating the policy
     valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
         None then assumes policy can be used for any agent in the environment.
@@ -407,8 +511,11 @@ def register(
     """
     global registry
     new_spec = PolicySpec(
-        id=id,
+        policy_name=policy_name,
         entry_point=entry_point,
+        version=version,
+        env_id=env_id,
+        env_args=env_args,
         valid_agent_ids=valid_agent_ids,
         nondeterministic=nondeterministic,
         **kwargs,
@@ -418,17 +525,6 @@ def register(
 
 def register_spec(spec: PolicySpec):
     """Register a policy spec with posggym-agents.
-
-    The `id` parameter of the spec corresponds to the unique identifier of the policy,
-    with the syntax as follows:
-
-        `(env-id)/(policy-name)-v(version)`
-
-    where `env-id` is optional if the policy is valid for all environments
-    (e.g. the uniform random policy).
-
-    It takes arbitrary keyword arguments, which are passed to the `PolicySpec`
-    constructor.
 
     Arguments
     ---------
@@ -452,7 +548,7 @@ def make(
 
     Arguments
     ---------
-    id: Name of the policy or a policy spec.
+    id: Unique identifier of the policy or a policy spec.
     model: The model for the environment the policy will be interacting with.
     agent_id: The ID of the agent the policy will be used for.
     kwargs: Additional arguments to pass to the policy constructor.
@@ -469,7 +565,7 @@ def make(
     if isinstance(id, PolicySpec):
         spec_: PolicySpec = id
     else:
-        env_id, policy_name, version = parse_policy_id(id)
+        env_id, env_args_id, policy_name, version = parse_policy_id(id)
 
         if id not in registry:
             generic_names = {
@@ -477,11 +573,12 @@ def make(
             }
             if policy_name in generic_names:
                 env_id = None
+                env_args_id = None
 
-        policy_id = get_policy_id(env_id, policy_name, version)
+        policy_id = get_policy_id(env_id, env_args_id, policy_name, version)
         spec_ = registry.get(policy_id)  # type: ignore
 
-        latest_version = find_highest_version(env_id, policy_name)
+        latest_version = find_highest_version(env_id, env_args_id, policy_name)
         if (
             version is not None
             and latest_version is not None
@@ -494,7 +591,7 @@ def make(
 
         if version is None and latest_version is not None:
             version = latest_version
-            new_policy_id = get_policy_id(env_id, policy_name, version)
+            new_policy_id = get_policy_id(env_id, env_args_id, policy_name, version)
             spec_ = registry.get(new_policy_id)  # type: ignore
             logger.warn(
                 f"Using the latest versioned policy `{new_policy_id}` "
@@ -502,7 +599,7 @@ def make(
             )
 
         if spec_ is None:
-            _check_version_exists(env_id, policy_name, version)
+            _check_version_exists(env_id, env_args_id, policy_name, version)
             raise error.Error(f"No registered policy with id: {id}")
 
     if spec_.valid_agent_ids and agent_id not in spec_.valid_agent_ids:
@@ -554,12 +651,12 @@ def spec(id: str) -> PolicySpec:
     """
     spec_ = registry.get(id)
     if spec_ is None:
-        env_id, policy_name, version = parse_policy_id(id)
-        _check_version_exists(env_id, policy_name, version)
+        env_id, env_args_id, policy_name, version = parse_policy_id(id)
+        _check_version_exists(env_id, env_args_id, policy_name, version)
 
         # No error raised so policy_name-version may be generic
-        id = get_policy_id(None, policy_name, version)
-        _check_version_exists(None, policy_name, version)
+        id = get_policy_id(None, None, policy_name, version)
+        _check_version_exists(None, None, policy_name, version)
         spec_ = registry.get(id)
 
     if spec_ is None:
@@ -596,11 +693,11 @@ def pprint_registry(
     env_policies = defaultdict(lambda: [])
     max_justify = 0
     for spec in _registry.values():
-        env_id, policy_name, version = parse_policy_id(spec.id)
-        if env_id is None:
-            env_id = "Generic"
-        env_policies[env_id].append(f"{policy_name}-v{version}")
-        max_justify = max(max_justify, len(f"{policy_name}-v{version}"))
+        env_id = "Generic" if spec.env_id is None else spec.env_id
+        if spec.env_args_id is not None:
+            env_id += "/" + spec.env_args_id
+        env_policies[env_id].append(f"{spec.policy_name}-v{spec.version}")
+        max_justify = max(max_justify, len(f"{spec.policy_name}-v{spec.version}"))
 
     # Iterate through each environment and print policies alphabetically.
     return_str = ""

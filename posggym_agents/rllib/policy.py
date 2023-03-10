@@ -11,7 +11,6 @@ from gymnasium import spaces
 from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
 
 from posggym_agents import logger
-from posggym_agents.agents.registration import PolicySpec
 from posggym_agents.policy import ActType, ObsType, Policy, PolicyID, PolicyState
 from posggym_agents.rllib.preprocessors import (
     ObsPreprocessor,
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
     import posggym.model as M
     from posggym.utils.history import AgentHistory
     from ray import rllib
+    from posggym_agents.agents.registration import PolicyEntryPoint
 
 
 RllibHiddenState = List[Any]
@@ -148,32 +148,17 @@ class PPORllibPolicy(RllibPolicy[int, ObsType]):
         return info[self.VF_PRED]
 
 
-def load_rllib_policy_spec(
-    id: str,
-    policy_file: str,
-    valid_agent_ids: List[M.AgentID] | None = None,
-    nondeterministic: bool = True,
-    **spec_kwargs,
-) -> PolicySpec:
-    """Load policy spec for from policy dir.
-
-    'id' is the
-    'policy_file' is the path to the agent .pkl file.
+def get_rllib_policy_entry_point(policy_file: str) -> PolicyEntryPoint:
+    """Get Rllib policy entry point from policy file.
 
     Arguments
     ---------
-    id: The official policy ID of the agent policy. This is the unique ID for the policy
-        to be used in the global registry
     policy_file: the path the rllib policy .pkl file, containing the policy weights and
         configuration information.
-    valid_agent_ids: Optional AgentIDs in environment that policy is compatible with. If
-        None then assumes policy can be used for any agent in the environment.
-    nondeterministic: Whether this policy is non-deterministic even after seeding.
-    spec_kwargs: Additional kwargs, if any, to pass to the agent initializing
 
     Returns
     -------
-    The PolicySpec for the specified rllib policy file.
+    The PolicyEntryPoint function for rllib policy stored in the specified policy file.
 
     """
 
@@ -196,19 +181,9 @@ def load_rllib_policy_spec(
         obs_space = model.observation_spaces[agent_id]
         flat_obs_space: spaces.Box = spaces.flatten_space(obs_space)  # type: ignore
 
-        ppo_policy = PPOTorchPolicy(
-            flat_obs_space,
-            action_space,
-            data["config"],
-        )
+        ppo_policy = PPOTorchPolicy(flat_obs_space, action_space, data["config"])
         ppo_policy.set_state(data["state"])
 
         return PPORllibPolicy(model, agent_id, policy_id, ppo_policy, preprocessor)
 
-    return PolicySpec(
-        id,
-        _entry_point,
-        valid_agent_ids=valid_agent_ids,
-        nondeterministic=nondeterministic,
-        **spec_kwargs,
-    )
+    return _entry_point

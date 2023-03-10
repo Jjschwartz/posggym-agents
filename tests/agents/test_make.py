@@ -11,49 +11,80 @@ import posggym
 import pytest
 
 import posggym_agents as pga
+from posggym_agents.agents.registration import get_env_args_id
 from posggym_agents.agents.random_policies import (
     DiscreteFixedDistributionPolicy,
     RandomPolicy,
 )
+from tests.agents.utils import assert_equals
 
 
 TEST_ENV_ID = "MultiAccessBroadcastChannel-v0"
 TEST_ENV_ID_UNV = "MultiAccessBroadcastChannel"
+TEST_ENV_ARGS = {
+    "num_nodes": 3,
+    "fill_probs": (0.9, 0.2, 0.3),
+    "init_buffer_dist": (1.0, 1.0, 1.0),
+}
+TEST_ENV_ARGS_ID = get_env_args_id(TEST_ENV_ARGS)
 
 
 @pytest.fixture(scope="function")
 def register_make_testing_policies():
     """Registers testing policies for `posggym_agents.make`"""
+    pga.register(policy_name="GenericTestPolicy", entry_point=RandomPolicy, version=0)
     pga.register(
-        "GenericTestPolicy-v0",
+        policy_name="EnvTestPolicy",
         entry_point=RandomPolicy,
+        version=1,
+        env_id=TEST_ENV_ID,
     )
     pga.register(
-        f"{TEST_ENV_ID}/EnvTestPolicy-v1",
+        policy_name="EnvTestPolicy",
         entry_point=RandomPolicy,
+        version=3,
+        env_id=TEST_ENV_ID,
     )
     pga.register(
-        f"{TEST_ENV_ID}/EnvTestPolicy-v3",
+        policy_name="EnvTestPolicy",
         entry_point=RandomPolicy,
+        version=5,
+        env_id=TEST_ENV_ID,
     )
     pga.register(
-        f"{TEST_ENV_ID}/EnvTestPolicy-v5",
+        policy_name="EnvTestPolicy",
         entry_point=RandomPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        env_args=TEST_ENV_ARGS,
     )
 
     pga.register(
-        f"{TEST_ENV_ID}/EnvUnversionedTestPolicy",
+        policy_name="EnvUnversionedTestPolicy",
         entry_point=RandomPolicy,
+        version=None,
+        env_id=TEST_ENV_ID,
     )
 
     pga.register(
-        "GenericArgumentTestPolicy-v0",
+        policy_name="GenericArgumentTestPolicy",
         entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
         kwargs={"dist": None},
     )
     pga.register(
-        f"{TEST_ENV_ID}/EnvArgumentTestPolicy-v0",
+        policy_name="EnvArgumentTestPolicy",
         entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        kwargs={"dist": None},
+    )
+    pga.register(
+        policy_name="EnvArgumentTestPolicy",
+        entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        env_args=TEST_ENV_ARGS,
         kwargs={"dist": None},
     )
 
@@ -63,9 +94,11 @@ def register_make_testing_policies():
     del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v1"]
     del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v3"]
     del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v5"]
+    del pga.registry[f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvTestPolicy-v0"]
     del pga.registry[f"{TEST_ENV_ID}/EnvUnversionedTestPolicy"]
     del pga.registry["GenericArgumentTestPolicy-v0"]
     del pga.registry[f"{TEST_ENV_ID}/EnvArgumentTestPolicy-v0"]
+    del pga.registry[f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvArgumentTestPolicy-v0"]
 
 
 def test_make_generic():
@@ -74,24 +107,50 @@ def test_make_generic():
 
     policy = pga.make("Random-v0", env.model, env.agents[0])
     assert policy.spec.id == "Random-v0"
+    assert policy.spec.policy_name == "Random"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id is None
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
 
     policy = pga.make(f"{env_id}/Random-v0", env.model, env.agents[0])
     assert policy.spec.id == "Random-v0"
+    assert policy.spec.policy_name == "Random"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id is None
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
 
     env.close()
 
 
-def test_make_env():
-    env_id = "LevelBasedForaging-5x5-n2-f4-v2"
-    env = posggym.make(env_id, disable_env_checker=True)
-    policy_id = f"{env_id}/Heuristic1-v0"
+def test_make_env_specific(register_make_testing_policies):
+    env = posggym.make(TEST_ENV_ID, disable_env_checker=True)
+    policy_id = f"{TEST_ENV_ID}/EnvTestPolicy-v5"
     policy = pga.make(policy_id, env.model, env.agents[0])
     assert policy.spec.id == policy_id
+    assert policy.spec.policy_name == "EnvTestPolicy"
+    assert policy.spec.version == 5
+    assert policy.spec.env_id == TEST_ENV_ID
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
     env.close()
 
 
-def test_make_kwargs(register_make_testing_policies):
-    env = posggym.make(TEST_ENV_ID)
+def test_make_env_and_env_args_specific(register_make_testing_policies):
+    env = posggym.make(TEST_ENV_ID, disable_env_checker=True, **TEST_ENV_ARGS)
+    policy_id = f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvTestPolicy-v0"
+    policy = pga.make(policy_id, env.model, env.agents[0])
+    assert policy.spec.id == policy_id
+    assert policy.spec.policy_name == "EnvTestPolicy"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id == TEST_ENV_ID
+    assert_equals(policy.spec.env_args, TEST_ENV_ARGS, "env_args: ")
+    assert policy.spec.env_args_id == TEST_ENV_ARGS_ID
+
+
+def test_make_policy_with_kwargs(register_make_testing_policies):
+    env = posggym.make(TEST_ENV_ID, disable_env_checker=True)
     dist = {0: 0.3, 1: 0.7}
     policy = pga.make(
         "GenericArgumentTestPolicy-v0",
@@ -101,7 +160,12 @@ def test_make_kwargs(register_make_testing_policies):
     )
     assert policy.spec is not None
     assert policy.spec.id == "GenericArgumentTestPolicy-v0"
-    assert policy.dist == dist
+    assert policy.spec.policy_name == "GenericArgumentTestPolicy"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id is None
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
+    assert_equals(policy.dist, dist)
 
     policy = pga.make(
         f"{TEST_ENV_ID}/GenericArgumentTestPolicy-v0",
@@ -111,7 +175,12 @@ def test_make_kwargs(register_make_testing_policies):
     )
     assert policy.spec is not None
     assert policy.spec.id == "GenericArgumentTestPolicy-v0"
-    assert policy.dist == dist
+    assert policy.spec.policy_name == "GenericArgumentTestPolicy"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id is None
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
+    assert_equals(policy.dist, dist)
 
     policy = pga.make(
         f"{TEST_ENV_ID}/EnvArgumentTestPolicy-v0",
@@ -121,7 +190,29 @@ def test_make_kwargs(register_make_testing_policies):
     )
     assert policy.spec is not None
     assert policy.spec.id == f"{TEST_ENV_ID}/EnvArgumentTestPolicy-v0"
-    assert policy.dist == dist
+    assert policy.spec.policy_name == "EnvArgumentTestPolicy"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id == TEST_ENV_ID
+    assert policy.spec.env_args is None
+    assert policy.spec.env_args_id is None
+    assert_equals(policy.dist, dist)
+
+    policy = pga.make(
+        f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvArgumentTestPolicy-v0",
+        env.model,
+        env.agents[0],
+        dist=dist,
+    )
+    assert policy.spec is not None
+    assert (
+        policy.spec.id == f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvArgumentTestPolicy-v0"
+    )
+    assert policy.spec.policy_name == "EnvArgumentTestPolicy"
+    assert policy.spec.version == 0
+    assert policy.spec.env_id == TEST_ENV_ID
+    assert_equals(policy.spec.env_args, TEST_ENV_ARGS, "env_args: ")
+    assert policy.spec.env_args_id == TEST_ENV_ARGS_ID
+    assert_equals(policy.dist, dist)
 
     env.close()
 
@@ -181,10 +272,7 @@ def test_make_deprecated():
     # Making policy version that is no longer supported will raise an error
     # Note: making an older version (i.e. not the latest version) will only raise a
     #       warning if the older version is still supported (i.e. is in the registry)
-    pga.register(
-        "DummyPolicy-v1",
-        entry_point=RandomPolicy,
-    )
+    pga.register(policy_name="DummyPolicy", entry_point=RandomPolicy, version=1)
 
     env = posggym.make(TEST_ENV_ID)
     with warnings.catch_warnings(record=True), pytest.raises(

@@ -33,15 +33,21 @@ from posggym_agents.agents.registration import (
 # ------------------------------
 
 register(
-    id="Random-v0",
+    policy_name="Random",
     entry_point=RandomPolicy,
+    version=0,
+    env_id=None,
+    env_args=None,
     valid_agent_ids=None,
     nondeterministic=False,
 )
 
 register(
-    id="DiscreteFixedDistributionPolicy-v0",
+    policy_name="DiscreteFixedDistributionPolicy",
     entry_point=DiscreteFixedDistributionPolicy,
+    version=0,
+    env_id=None,
+    env_args=None,
     valid_agent_ids=None,
     nondeterministic=False,
 )

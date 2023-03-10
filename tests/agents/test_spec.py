@@ -9,6 +9,93 @@ import posggym
 import pytest
 
 import posggym_agents as pga
+from posggym_agents.agents.registration import get_env_args_id
+from posggym_agents.agents.random_policies import (
+    DiscreteFixedDistributionPolicy,
+    RandomPolicy,
+)
+
+
+TEST_ENV_ID = "MultiAccessBroadcastChannel-v0"
+TEST_ENV_ID_UNV = "MultiAccessBroadcastChannel"
+TEST_ENV_ARGS = {
+    "num_nodes": 3,
+    "fill_probs": (0.9, 0.2, 0.3),
+    "init_buffer_dist": (1.0, 1.0, 1.0),
+}
+TEST_ENV_ARGS_ID = get_env_args_id(TEST_ENV_ARGS)
+
+
+@pytest.fixture(scope="function")
+def register_make_testing_policies():
+    """Registers testing policies for `posggym_agents.make`"""
+    pga.register(policy_name="GenericTestPolicy", entry_point=RandomPolicy, version=0)
+    pga.register(
+        policy_name="EnvTestPolicy",
+        entry_point=RandomPolicy,
+        version=1,
+        env_id=TEST_ENV_ID,
+    )
+    pga.register(
+        policy_name="EnvTestPolicy",
+        entry_point=RandomPolicy,
+        version=3,
+        env_id=TEST_ENV_ID,
+    )
+    pga.register(
+        policy_name="EnvTestPolicy",
+        entry_point=RandomPolicy,
+        version=5,
+        env_id=TEST_ENV_ID,
+    )
+    pga.register(
+        policy_name="EnvTestPolicy",
+        entry_point=RandomPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        env_args=TEST_ENV_ARGS,
+    )
+
+    pga.register(
+        policy_name="EnvUnversionedTestPolicy",
+        entry_point=RandomPolicy,
+        version=None,
+        env_id=TEST_ENV_ID,
+    )
+
+    pga.register(
+        policy_name="GenericArgumentTestPolicy",
+        entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
+        kwargs={"dist": None},
+    )
+    pga.register(
+        policy_name="EnvArgumentTestPolicy",
+        entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        kwargs={"dist": None},
+    )
+    pga.register(
+        policy_name="EnvArgumentTestPolicy",
+        entry_point=DiscreteFixedDistributionPolicy,
+        version=0,
+        env_id=TEST_ENV_ID,
+        env_args=TEST_ENV_ARGS,
+        kwargs={"dist": None},
+    )
+
+    yield
+
+    del pga.registry["GenericTestPolicy-v0"]
+    del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v1"]
+    del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v3"]
+    del pga.registry[f"{TEST_ENV_ID}/EnvTestPolicy-v5"]
+    del pga.registry[f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvTestPolicy-v0"]
+    del pga.registry[f"{TEST_ENV_ID}/EnvUnversionedTestPolicy"]
+    del pga.registry["GenericArgumentTestPolicy-v0"]
+    del pga.registry[f"{TEST_ENV_ID}/EnvArgumentTestPolicy-v0"]
+    del pga.registry[f"{TEST_ENV_ID}/{TEST_ENV_ARGS_ID}/EnvArgumentTestPolicy-v0"]
 
 
 def test_generic_spec():
@@ -23,10 +110,11 @@ def test_generic_env_spec():
     assert spec is pga.registry["Random-v0"]
 
 
-def test_env_spec():
-    spec = pga.spec("LevelBasedForaging-5x5-n2-f4-v2/Heuristic1-v0")
-    assert spec.id == "LevelBasedForaging-5x5-n2-f4-v2/Heuristic1-v0"
-    assert spec is pga.registry["LevelBasedForaging-5x5-n2-f4-v2/Heuristic1-v0"]
+def test_env_spec(register_make_testing_policies):
+    policy_id = f"{TEST_ENV_ID}/EnvTestPolicy-v5"
+    spec = pga.spec(policy_id)
+    assert spec.id == policy_id
+    assert spec is pga.registry[policy_id]
 
 
 def test_generic_spec_kwargs():
@@ -39,11 +127,11 @@ def test_generic_spec_kwargs():
     assert policy.spec.kwargs["dist"] == action_dist
 
 
-def test_generic_spec_missing_lookup():
-    pga.register(id="Test1-v0", entry_point="no-entry-point")
-    pga.register(id="Test1-v15", entry_point="no-entry-point")
-    pga.register(id="Test1-v9", entry_point="no-entry-point")
-    pga.register(id="Other1-v100", entry_point="no-entry-point")
+def test_generic_spec_missing_lookup(register_make_testing_policies):
+    pga.register("Test1", entry_point="no-entry-point", version=0)
+    pga.register("Test1", entry_point="no-entry-point", version=15)
+    pga.register("Test1", entry_point="no-entry-point", version=9)
+    pga.register("Other1", entry_point="no-entry-point", version=100)
 
     with pytest.raises(
         pga.error.DeprecatedPolicy,
@@ -72,10 +160,10 @@ def test_generic_spec_missing_lookup():
 
 def test_env_spec_missing_lookup():
     env_id = "MultiAccessBroadcastChannel-v0"
-    pga.register(id=f"{env_id}/Test1-v0", entry_point="no-entry-point")
-    pga.register(id=f"{env_id}/Test1-v15", entry_point="no-entry-point")
-    pga.register(id=f"{env_id}/Test1-v9", entry_point="no-entry-point")
-    pga.register(id=f"{env_id}/Other1-v100", entry_point="no-entry-point")
+    pga.register("Test1", entry_point="no-entry-point", version=0, env_id=env_id)
+    pga.register("Test1", entry_point="no-entry-point", version=15, env_id=env_id)
+    pga.register("Test1", entry_point="no-entry-point", version=9, env_id=env_id)
+    pga.register("Other1", entry_point="no-entry-point", version=100, env_id=env_id)
 
     with pytest.raises(
         pga.error.DeprecatedPolicy,
@@ -104,9 +192,9 @@ def test_env_spec_missing_lookup():
 
 def test_spec_malformed_lookup():
     expected_error_msg = (
-        "Malformed policy ID: “Random-v0”. "
-        "(Currently all IDs must be of the form [env-id/](policy-name)-v(version) "
-        "(env-id may be optional, depending on the policy))."
+        "Malformed policy ID: “Random-v0”. Currently all IDs must be of the form "
+        "[env_id/][env_args_id/](policy_name)-v(version) (env_id and env_args_id may "
+        "be optional, depending on the policy)."
     )
     with pytest.raises(
         pga.error.Error,
@@ -117,8 +205,8 @@ def test_spec_malformed_lookup():
 
 def test_spec_default_lookups():
     env_id = "MultiAccessBroadcastChannel-v0"
-    pga.register(id=f"{env_id}/Test3", entry_point="no-entry-point")
-    pga.register(id="Test4", entry_point="no-entry-point")
+    pga.register("Test3", entry_point="no-entry-point", version=None, env_id=env_id)
+    pga.register("Test4", entry_point="no-entry-point", version=None, env_id=None)
 
     with pytest.raises(
         pga.error.DeprecatedPolicy,

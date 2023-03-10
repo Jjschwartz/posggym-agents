@@ -38,8 +38,10 @@ def test_policy(spec: PolicySpec, env_id_prefix: str):
         if spec.env_id is None:
             # policy is generic so just test on a standard env
             env = posggym.make(DEFAULT_ENV)
-        else:
+        elif spec.env_args is None:
             env = posggym.make(spec.env_id)
+        else:
+            env = posggym.make(spec.env_id, **spec.env_args)
 
     obs, _ = env.reset(seed=SEED)
 
@@ -93,15 +95,16 @@ def test_policy_determinism_rollout(spec: PolicySpec):
     with warnings.catch_warnings(record=False):
         # policy is generic if spec.env_id is None so just test on a standard env
         env_id = DEFAULT_ENV if spec.env_id is None else spec.env_id
+        env_args = {} if spec.env_args is None else spec.env_args
 
     # use two identical environments in case policies utilize models (e.g. for planning)
-    env_1 = posggym.make(env_id)
+    env_1 = posggym.make(env_id, **env_args)
     # Don't check rollout equality if environment is nondeterministic since this may
     # affect policies.
     if env_1.spec.nondeterministic is True:
         env_1.close()
         return
-    env_2 = posggym.make(env_id)
+    env_2 = posggym.make(env_id, **env_args)
 
     obs, _ = env_1.reset(seed=SEED)
     env_2.reset(seed=SEED)

@@ -4,7 +4,13 @@ import os.path as osp
 from posggym_agents.agents.utils import load_rllib_policy_specs_from_files
 
 
-ENV_ID = "Driving-14x14RoundAbout-n2-v0"
+ENV_ID = "Driving-v0"
+ENV_ARGS = {
+    "grid": "14x14RoundAbout",
+    "num_agents": 2,
+    "obs_dim": (3, 1, 1),
+    "obstacle_collisions": False,
+}
 BASE_DIR = osp.dirname(osp.abspath(__file__))
 BASE_AGENT_DIR = osp.join(BASE_DIR, "agents")
 
@@ -43,5 +49,11 @@ POLICY_FILES = [
 
 # Map from id to policy spec for this env
 POLICY_SPECS = load_rllib_policy_specs_from_files(
-    ENV_ID, BASE_AGENT_DIR, POLICY_FILES, valid_agent_ids=None, nondeterministic=True
+    env_id=ENV_ID,
+    env_args=ENV_ARGS,
+    policy_file_dir_path=BASE_AGENT_DIR,
+    policy_file_names=POLICY_FILES,
+    version=0,
+    valid_agent_ids=None,
+    nondeterministic=True,
 )

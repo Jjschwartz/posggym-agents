@@ -5,67 +5,121 @@ https://github.com/Farama-Foundation/Gymnasium/blob/v0.27.0/tests/envs/test_regi
 
 """
 import re
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import pytest
 
 import posggym_agents as pga
+from posggym_agents.agents.registration import get_env_args_id
 
 
 @pytest.mark.parametrize(
-    "policy_id, env_id, policy_name, version",
+    "env_id, env_args, policy_name, version",
     [
         (
-            "MyAwesomeEnv-v0/MyAwesomePolicy-v0",
             "MyAwesomeEnv-v0",
+            {"k1": 1, "k2": (2, 3)},
             "MyAwesomePolicy",
             0,
         ),
-        ("MyAwesomePolicy-v0", None, "MyAwesomePolicy", 0),
-        ("MyAwesomePolicy", None, "MyAwesomePolicy", None),
-        ("MyAwesomePolicy-vfinal-v0", None, "MyAwesomePolicy-vfinal", 0),
-        ("MyAwesomePolicy-vfinal", None, "MyAwesomePolicy-vfinal", None),
-        ("MyAwesomePolicy--", None, "MyAwesomePolicy--", None),
-        ("MyAwesomePolicy-v", None, "MyAwesomePolicy-v", None),
+        ("MyAwesomeEnv-v0", None, "MyAwesomePolicy", 0),
+        (None, None, "MyAwesomePolicy", 0),
+        (None, None, "MyAwesomePolicy", None),
+        (None, None, "MyAwesomePolicy-vfinal", 0),
+        (None, None, "MyAwesomePolicy-vfinal", None),
+        (None, None, "MyAwesomePolicy--", None),
+        (None, None, "MyAwesomePolicy-v", None),
     ],
 )
 def test_register(
-    policy_id: str, env_id: Optional[str], policy_name: str, version: Optional[int]
+    env_id: Optional[str],
+    env_args: Optional[Dict[str, Any]],
+    policy_name: str,
+    version: Optional[int],
 ):
-    pga.register(policy_id, entry_point="no-entry-point")
-    assert pga.spec(policy_id).id == policy_id
+    pga.register(
+        policy_name=policy_name,
+        entry_point="no-entry-point",
+        version=version,
+        env_id=env_id,
+        env_args=env_args,
+    )
 
-    full_name = f"{policy_name}"
+    policy_id = f"{policy_name}"
+    env_args_id = None if env_args is None else get_env_args_id(env_args)
+    if env_args is not None:
+        policy_id = f"{env_args_id}/{policy_id}"
     if env_id:
-        full_name = f"{env_id}/{full_name}"
+        policy_id = f"{env_id}/{policy_id}"
     if version is not None:
-        full_name = f"{full_name}-v{version}"
+        policy_id = f"{policy_id}-v{version}"
 
-    assert full_name in pga.agents.registry
+    assert policy_id in pga.agents.registry
+
+    spec = pga.spec(policy_id)
+    assert spec.id == policy_id
+    assert spec.policy_name == policy_name
+    assert spec.version == version
+    assert spec.env_id == env_id
+    assert spec.env_args == env_args
+    assert spec.env_args_id == env_args_id
 
     del pga.agents.registry[policy_id]
 
 
 @pytest.mark.parametrize(
-    "policy_id",
+    "env_id, env_args, policy_name, version",
     [
-        "“Random-v0”",
-        "MyNotSoAwesomePolicy-vNone\n",
-        "MyEnvID///MyNotSoAwesomePolicy-vNone",
+        (None, None, "“Random”", 0),
+        (None, None, "MyNotSoAwesomePolicy\n", None),
+        ("MyEnvID\n", None, "MyNotSoAwesomePolicy", None),
     ],
 )
-def test_register_error(policy_id):
-    with pytest.raises(pga.error.Error, match=f"^Malformed policy ID: {policy_id}"):
-        pga.register(policy_id, "no-entry-point")
+def test_register_error(
+    env_id: Optional[str],
+    env_args: Optional[Dict[str, Any]],
+    policy_name: str,
+    version: Optional[int],
+):
+    with pytest.raises(pga.error.Error, match="^Malformed policy ID:"):
+        pga.register(
+            policy_name=policy_name,
+            entry_point="no-entry-point",
+            version=version,
+            env_id=env_id,
+            env_args=env_args,
+        )
+
+
+@pytest.mark.parametrize(
+    "env_id, env_args, policy_name, version",
+    [
+        (None, {"k1": 1, "k2": 2}, "MyNotSoAwesomePolicy", None),
+    ],
+)
+def test_register_error2(
+    env_id: Optional[str],
+    env_args: Optional[Dict[str, Any]],
+    policy_name: str,
+    version: Optional[int],
+):
+    with pytest.raises(pga.error.Error, match="^Cannot create policy ID."):
+        pga.register(
+            policy_name=policy_name,
+            entry_point="no-entry-point",
+            version=version,
+            env_id=env_id,
+            env_args=env_args,
+        )
 
 
 def test_register_versioned_unversioned():
     # Register versioned then unversioned
-    versioned_policy = "MyPolicy-v0"
-    pga.register(versioned_policy, "no-entry-point")
-    assert pga.agents.spec(versioned_policy).id == versioned_policy
+    versioned_policy_id = "MyPolicy-v0"
+    pga.register(policy_name="MyPolicy", entry_point="no-entry-point", version=0)
+    assert pga.agents.spec(versioned_policy_id).id == versioned_policy_id
 
-    unversioned_policy = "MyPolicy"
+    unversioned_policy_id = "MyPolicy"
     with pytest.raises(
         pga.error.RegistrationError,
         match=re.escape(
@@ -73,14 +127,14 @@ def test_register_versioned_unversioned():
             " policy `MyPolicy-v0` of the same name already exists."
         ),
     ):
-        pga.register(unversioned_policy, "no-entry-point")
+        pga.register(policy_name="MyPolicy", entry_point="no-entry-point", version=None)
 
     # Clean everything
-    del pga.agents.registry[versioned_policy]
+    del pga.agents.registry[versioned_policy_id]
 
     # Register unversioned then versioned
-    pga.register(unversioned_policy, "no-entry-point")
-    assert pga.agents.spec(unversioned_policy).id == unversioned_policy
+    pga.register(policy_name="MyPolicy", entry_point="no-entry-point", version=None)
+    assert pga.agents.spec(unversioned_policy_id).id == unversioned_policy_id
     with pytest.raises(
         pga.error.RegistrationError,
         match=re.escape(
@@ -88,7 +142,7 @@ def test_register_versioned_unversioned():
             "unversioned policy `MyPolicy` of the same name already exists."
         ),
     ):
-        pga.register(versioned_policy, "no-entry-point")
+        pga.register(policy_name="MyPolicy", entry_point="no-entry-point", version=0)
 
     # Clean everything
-    del pga.agents.registry[unversioned_policy]
+    del pga.agents.registry[unversioned_policy_id]

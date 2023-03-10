@@ -9,15 +9,20 @@ import posggym_agents as pga
 # To ignore the trailing whitespaces, will need flake to ignore this file.
 # flake8: noqa
 
-reduced_registry = {pi_id: pi_spec for pi_id, pi_spec in pga.registry.items()}
-
 
 def test_pprint_custom_registry():
     """Testing a registry different from default."""
+    driving_env_and_args_id = (
+        "Driving-v0/"
+        "grid=14x14RoundAbout-num_agents=2-obs_dim=(3,1,1)-obstacle_collisions=False"
+    )
     a = {
         "Random-v0": pga.registry["Random-v0"],
-        "LevelBasedForaging-5x5-n2-f4-v2/Heuristic1-v0": pga.registry[
-            "LevelBasedForaging-5x5-n2-f4-v2/Heuristic1-v0"
+        "LevelBasedForaging-v2/Heuristic1-v0": pga.registry[
+            "LevelBasedForaging-v2/Heuristic1-v0"
+        ],
+        f"{driving_env_and_args_id}/klr_k0_seed0-v0": pga.registry[
+            f"{driving_env_and_args_id}/klr_k0_seed0-v0"
         ],
     }
     out = pga.pprint_registry(a, disable_print=True)
@@ -25,8 +30,11 @@ def test_pprint_custom_registry():
     correct_out = """===== Generic =====
 Random-v0
 
-===== LevelBasedForaging-5x5-n2-f4-v2 =====
+===== LevelBasedForaging-v2 =====
 Heuristic1-v0
+
+===== Driving-v0/grid=14x14RoundAbout-num_agents=2-obs_dim=(3,1,1)-obstacle_collisions=False =====
+klr_k0_seed0-v0
 
 """
     assert out == correct_out
