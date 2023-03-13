@@ -1,6 +1,6 @@
 """Functions and classes for rendering the environment during episodes."""
 import abc
-from typing import Iterable, Sequence, Dict
+from typing import Iterable, Dict
 
 import posggym
 import posggym.model as M
@@ -18,7 +18,7 @@ class Renderer(abc.ABC):
         env: posggym.Env,
         timestep: M.JointTimestep,
         action: Dict[M.AgentID, M.ActType],
-        policies: Sequence[Policy],
+        policies: Dict[M.AgentID, Policy],
         episode_end: bool,
     ) -> None:
         """Render a single environment step."""
@@ -40,7 +40,7 @@ class EpisodeRenderer(Renderer):
         env: posggym.Env,
         timestep: M.JointTimestep,
         action: Dict[M.AgentID, M.ActType],
-        policies: Sequence[Policy],
+        policies: Dict[M.AgentID, Policy],
         episode_end: bool,
     ) -> None:
         if self._episode_count % self._render_frequency != 0:
@@ -66,7 +66,7 @@ class PauseRenderer(Renderer):
         env: posggym.Env,
         timestep: M.JointTimestep,
         action: Dict[M.AgentID, M.ActType],
-        policies: Sequence[Policy],
+        policies: Dict[M.AgentID, Policy],
         episode_end: bool,
     ) -> None:
         input("Press ENTER to continue.")
@@ -78,7 +78,7 @@ def generate_renders(
     env: posggym.Env,
     timestep: M.JointTimestep,
     action: Dict[M.AgentID, M.ActType],
-    policies: Sequence[Policy],
+    policies: Dict[M.AgentID, Policy],
     episode_end: bool,
 ) -> None:
     """Handle the generation of environment step renderings."""

@@ -52,7 +52,7 @@ class Tracker(abc.ABC):
         env: posggym.Env,
         timestep: M.JointTimestep,
         action: Dict[M.AgentID, M.ActType],
-        policies: Sequence[Policy],
+        policies: Dict[M.AgentID, Policy],
         episode_end: bool,
     ):
         """Accumulates statistics for a single step."""
@@ -101,7 +101,7 @@ class EpisodeTracker(Tracker):
         env: posggym.Env,
         timestep: M.JointTimestep,
         action: Dict[M.AgentID, M.ActType],
-        policies: Sequence[Policy],
+        policies: Dict[M.AgentID, Policy],
         episode_end: bool,
     ):
         if self._agents is None:

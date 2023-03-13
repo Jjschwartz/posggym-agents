@@ -1,4 +1,4 @@
-"""Script for training self-play policies using RLlib."""
+"""Script for continuing training of Rllib policies."""
 import argparse
 
 from posggym_agents.rllib.train.train import continue_training

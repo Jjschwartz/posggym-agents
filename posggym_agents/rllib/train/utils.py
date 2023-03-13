@@ -20,18 +20,17 @@ def posggym_registered_env_creator(config):
     """Create a new rllib compatible environment from POSGgym environment.
 
     Config expects:
-    "env_name" - name of the posggym env
+    "env_id" - name of the posggym env
 
     and optionally:
     "render_mode" - environment render_mode
     "flatten_obs" - bool whether to use observation flattening wrapper
                    (default=True)
+    any other env kwargs to pass to make
 
-    Note use "env_name" instead of "env_id" to be compatible with rllib API.
     """
-    env = posggym.make(
-        config["env_id"], **{"render_mode": config.get("render_mode", None)}
-    )
+    env_kwargs = {k: v for k, v in config.items() if k not in ("env_id", "flatten_obs")}
+    env = posggym.make(config["env_id"], **env_kwargs)
     if config.get("flatten_obs", True):
         env = FlattenObservation(env)
     return RllibMultiAgentEnv(env)

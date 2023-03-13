@@ -1,4 +1,17 @@
-"""Script for training K-Level reasoning policies using RLlib."""
+"""Script for training K-Level reasoning policies using RLlib.
+
+Note, this script will train policies on the given posggym environment using the
+environment's default arguments. To use custom environment arguments add them to
+the Algorithm configuration:
+
+```
+config = config = get_default_ppo_training_config(env_id, seed, log_level)
+config.env_config["env_arg_name"] = env_arg_value
+```
+
+This will have to be done in a custom script.
+
+"""
 import argparse
 
 from posggym_agents.rllib.train.algorithm_config import get_default_ppo_training_config

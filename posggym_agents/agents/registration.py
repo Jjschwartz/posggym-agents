@@ -14,6 +14,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Protocol, Tuple, TYPE_CHECKING
 
+import posggym
+
 from posggym_agents import error, logger
 
 if TYPE_CHECKING:
@@ -455,33 +457,6 @@ def _check_spec_register(spec: PolicySpec):
         )
 
 
-def get_all_env_policies(
-    env_id: str, _registry: Dict = registry, include_generic_policies: bool = True
-) -> List[PolicySpec]:
-    """Get all PolicySpecs that are associated with a given environment ID.
-
-    Arguments
-    ---------
-    env_id: The ID of the environment
-    _registry: The policy registry
-    include_generic_policies: whether to also return policies that are valid for all
-        environments (e.g. the random-v0 policy)
-
-    Returns
-    -------
-    policy_specs: list of specs for policies associated with given environment.
-
-    """
-    return [
-        pi_spec
-        for pi_spec in _registry.values()
-        if (
-            pi_spec.env_id == env_id
-            or (include_generic_policies and pi_spec.env_id is None)
-        )
-    ]
-
-
 def register(
     policy_name: str,
     entry_point: PolicyEntryPoint | str,
@@ -721,3 +696,98 @@ def pprint_registry(
 
     print(return_str, end="")
     return None
+
+
+def get_all_env_policies(
+    env_id: str,
+    env_args: Dict[str, Any] | str | None = None,
+    _registry: Dict = registry,
+    include_generic_policies: bool = True,
+) -> List[PolicySpec]:
+    """Get all PolicySpecs that are associated with a given environment ID.
+
+    Arguments
+    ---------
+    env_id: The ID of the environment
+    env_args: Optional environment arguments or ID string of environment arguments. If
+        None, will return all policies for given environment.
+    _registry: The policy registry
+    include_generic_policies: whether to also return policies that are valid for all
+        environments (e.g. the random-v0 policy)
+
+    Returns
+    -------
+    policy_specs: list of specs for policies associated with given environment.
+
+    """
+    return [
+        spec
+        for spec in _registry.values()
+        if (
+            (include_generic_policies and spec.env_id is None)
+            or (
+                spec.env_id == env_id
+                and (
+                    env_args is None
+                    or spec.env_args_id is None
+                    or (isinstance(env_args, str) and spec.env_args_id == env_args)
+                    or (isinstance(env_args, dict) and spec.env_args == env_args)
+                )
+            )
+        )
+    ]
+
+
+def get_env_agent_policies(
+    env_id: str,
+    env_args: Dict[str, Any] | None = None,
+    _registry: Dict = registry,
+    include_generic_policies: bool = True,
+) -> Dict[M.AgentID, List[PolicySpec]]:
+    """Get each agent's policy specs associated with given environment.
+
+    Arguments
+    ---------
+    env_id: The ID of the environment
+    env_args: Optional environment arguments. If None, will return all policies for
+        given environment.
+    _registry: The policy registry
+    include_generic_policies: whether to also return policies that are valid for all
+        environments (e.g. the random-v0 policy) and environment args
+
+    Returns
+    -------
+    policy_specs: list of specs for policies associated with given environment.
+
+    """
+    env = posggym.make(env_id) if env_args is None else posggym.make(env_id, **env_args)
+
+    policies: Dict[M.AgentID, List[PolicySpec]] = {i: [] for i in env.possible_agents}
+    for spec in get_all_env_policies(env_id, env_args, include_generic_policies=True):
+        for i in env.possible_agents:
+            if spec.valid_agent_ids is None or i in spec.valid_agent_ids:
+                policies[i].append(spec)
+    return policies
+
+
+def get_all_envs(
+    _registry: Dict = registry,
+) -> Dict[str, Dict[str | None, Dict[str, Any] | None]]:
+    """Get all the environments that have at least one registered policy.
+
+    Arguments
+    ---------
+    _registry: The policy registry
+
+    Returns
+    -------
+    envs: a dictionary with env IDs as keys as list of (env_args, env_args_id) tuples as
+        the values.
+
+    """
+    envs: Dict[str, Dict[str | None, Dict[str, Any] | None]] = {}
+    for spec in registry.values():
+        if spec.env_id is not None:
+            envs.setdefault(spec.env_id, {})
+            envs[spec.env_id][spec.env_args_id] = spec.env_args
+    return envs

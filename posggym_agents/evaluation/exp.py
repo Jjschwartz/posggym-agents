@@ -42,15 +42,17 @@ class ExpParams(NamedTuple):
 
     exp_id: int
     env_id: str
-    policy_ids: List[str]
+    env_args: Optional[Dict[str, Any]]
+    env_args_id: Optional[str]
+    policy_ids: Dict[str, str]
     seed: int
     num_episodes: int
     time_limit: Optional[int] = None
     tracker_fn: Optional[Callable[[], List[stats_lib.Tracker]]] = None
     renderer_fn: Optional[Callable[[], List[render_lib.Renderer]]] = None
+    render_mode: Optional[str] = None
     stream_log_level: int = logging.INFO
     file_log_level: int = logging.DEBUG
-    env_kwargs: Optional[Dict[str, Any]] = None
     record_env: bool = False
     # If None then uses the default cubic frequency
     record_env_freq: Optional[int] = None
@@ -97,11 +99,16 @@ def get_exp_parser() -> argparse.ArgumentParser:
 
 
 def make_exp_result_dir(
-    exp_name: str, env_id: str, root_save_dir: Optional[str] = None
+    exp_name: str,
+    env_id: str,
+    env_args_id: Optional[str],
+    root_save_dir: Optional[str] = None,
 ) -> str:
     """Make a directory for experiment results."""
     time_str = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
-    if root_save_dir is None:
+    if root_save_dir is None and env_args_id is not None:
+        root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id, env_args_id)
+    elif root_save_dir is None:
         root_save_dir = os.path.join(BASE_RESULTS_DIR, env_id)
     pathlib.Path(root_save_dir).mkdir(parents=True, exist_ok=True)
     result_dir = tempfile.mkdtemp(prefix=f"{exp_name}_{time_str}", dir=root_save_dir)
@@ -175,11 +182,12 @@ def get_exp_run_logger(
 
 def _get_exp_statistics(params: ExpParams) -> stats_lib.AgentStatisticsMap:
     stats = {}
-    for i in range(len(params.policy_ids)):
+    for i in params.policy_ids:
         stats[i] = {
             "exp_id": params.exp_id,
             "agent_id": i,
             "env_id": params.env_id,
+            "env_args_id": params.env_args_id,
             "policy_id": params.policy_ids[i],
             "exp_seed": params.seed,
             "num_episodes": params.num_episodes,
@@ -202,7 +210,12 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     )
     _log_exp_start(params, result_dir, exp_logger)
 
-    env = posggym.make(params.env_id, **params.env_kwargs)
+    if params.env_args is not None:
+        env = posggym.make(
+            params.env_id, render_mode=params.render_mode, **params.env_args
+        )
+    else:
+        env = posggym.make(params.env_id, render_mode=params.render_mode)
     assert len(params.policy_ids) == len(env.possible_agents), (
         f"Experiment env '{env}' has {len(env.possible_agents)} possible agents, but "
         f"only {len(params.policy_ids)} policies supplied."
@@ -215,10 +228,9 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
             episode_trigger = _get_linear_episode_trigger(params.record_env_freq)
         env = wrappers.RecordVideo(env, video_folder, episode_trigger=episode_trigger)
 
-    policies = []
-    for i, policy_id in enumerate(params.policy_ids):
-        policy = make(policy_id, env.model, i)
-        policies.append(policy)
+    policies = {}
+    for i, policy_id in params.policy_ids.items():
+        policies[i] = make(policy_id, env.model, i)
 
     if params.tracker_fn:
         trackers = params.tracker_fn()
@@ -232,8 +244,8 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
 
     if params.seed is not None:
         env.reset(seed=params.seed)
-        for i, policy in enumerate(policies):
-            policy.reset(seed=params.seed + i)
+        for idx, policy in enumerate(policies.values()):
+            policy.reset(seed=params.seed + idx)
 
     try:
         statistics = runner.run_episode(
@@ -255,7 +267,7 @@ def run_single_experiment(args: Tuple[ExpParams, str]):
     finally:
         _log_exp_end(params, result_dir, exp_logger, time.time() - exp_start_time)
         env.close()
-        for policy in policies:
+        for policy in policies.values():
             policy.close()
         for h in exp_logger.handlers:
             h.close()
@@ -284,7 +296,12 @@ def run_experiments(
     num_exps = len(exp_params_list)
     logging.log(exp_log_level, "Running %d experiments", num_exps)
 
-    result_dir = make_exp_result_dir(exp_name, exp_params_list[0].env_id, root_save_dir)
+    result_dir = make_exp_result_dir(
+        exp_name,
+        exp_params_list[0].env_id,
+        exp_params_list[0].env_args_id,
+        root_save_dir,
+    )
     logging.log(exp_log_level, "Saving results to dir=%s", result_dir)
 
     if exp_args:

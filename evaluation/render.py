@@ -17,24 +17,40 @@ def main(args):  # noqa
     print("\n== Rendering Episodes ==")
     pprint(vars(args))
 
-    env = posggym.make(args.env_id, render_mode=args.render_mode)
-
-    policies = []
+    policy_specs = []
+    env_args, env_args_id = None, None
     for i, policy_id in enumerate(args.policy_ids):
         try:
-            pi = posggym_agents.make(policy_id, env.model, i)
+            pi_spec = posggym_agents.spec(policy_id)
         except posggym_agents.error.NameNotFound as e:
             if "/" not in policy_id:
                 # try prepending env id
                 policy_id = f"{args.env_id}/{policy_id}"
-                pi = posggym_agents.make(policy_id, env.model, i)
+                pi_spec = posggym_agents.spec(policy_id)
             else:
                 raise e
-        policies.append(pi)
+
+        if env_args is None and pi_spec.env_args is not None:
+            env_args, env_args_id = pi_spec.env_args, pi_spec.env_args_id
+        elif pi_spec.env_args is not None:
+            assert pi_spec.env_args_id == env_args_id
+        policy_specs.append(pi_spec)
+
+    if env_args:
+        env = posggym.make(args.env_id, render_mode=args.render_mode, **env_args)
+    else:
+        env = posggym.make(args.env_id, render_mode=args.render_mode)
+
+    assert len(policy_specs) == len(env.possible_agents)
+
+    policies = {}
+    for idx, spec in enumerate(policy_specs):
+        agent_id = env.possible_agents[idx]
+        policies[agent_id] = posggym_agents.make(spec.id, env.model, agent_id)
 
     if args.seed is not None:
         env.reset(seed=args.seed)
-        for i, policy in enumerate(policies):
+        for i, policy in enumerate(policies.values()):
             policy.reset(seed=args.seed + i)
 
     eval_lib.run_episode(
@@ -49,7 +65,7 @@ def main(args):  # noqa
     )
 
     env.close()
-    for policy in policies:
+    for policy in policies.values():
         policy.close()
 
     print("== All done ==")
@@ -68,8 +84,9 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         help=(
-            "List of IDs of policies to compare, one for each agent. You can provide "
-            "the IDs with or without the env ID part (before the '/')."
+            "List of IDs of policies to compare, one for each agent. Policy IDs should "
+            "be provided in order of env.possible_agents (i.e. the first policy ID "
+            "will be assigned to the 0-index policy in env.possible_agent, etc.)."
         ),
     )
     parser.add_argument(

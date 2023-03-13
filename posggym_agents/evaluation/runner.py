@@ -22,13 +22,13 @@ class EpisodeLoopStep(NamedTuple):
     env: posggym.Env
     timestep: M.JointTimestep
     actions: Dict[M.AgentID, M.ActType]
-    policies: List[Policy]
+    policies: Dict[M.AgentID, Policy]
     done: bool
 
 
 def run_episode_loop(
     env: posggym.Env,
-    policies: List[Policy],
+    policies: Dict[M.AgentID, Policy],
 ) -> Iterable[EpisodeLoopStep]:
     """Run policies in environment."""
     assert len(policies) == len(
@@ -36,9 +36,6 @@ def run_episode_loop(
     ), f"{len(policies)} policies supplied for env with {len(env.agents)} agents."
 
     observations, info = env.reset()
-    if not env.observation_first and observations is None:
-        observations = {i: None for i in env.agents}
-
     joint_timestep = M.JointTimestep(
         state=env.state,
         observations=observations,
@@ -76,7 +73,7 @@ def run_episode_loop(
 
 def run_episode(
     env: posggym.Env,
-    policies: List[Policy],
+    policies: Dict[M.AgentID, Policy],
     num_episodes: int,
     trackers: List[stats_lib.Tracker],
     renderers: List[render_lib.Renderer],
@@ -116,7 +113,7 @@ def run_episode(
         for tracker in trackers:
             tracker.reset_episode()
 
-        for policy in policies:
+        for policy in policies.values():
             policy.reset()
 
         timestep_sequence = run_episode_loop(env, policies)
