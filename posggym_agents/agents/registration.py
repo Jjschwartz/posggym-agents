@@ -763,7 +763,9 @@ def get_env_agent_policies(
     env = posggym.make(env_id) if env_args is None else posggym.make(env_id, **env_args)
 
     policies: Dict[M.AgentID, List[PolicySpec]] = {i: [] for i in env.possible_agents}
-    for spec in get_all_env_policies(env_id, env_args, include_generic_policies=True):
+    for spec in get_all_env_policies(
+        env_id, env_args, include_generic_policies=include_generic_policies
+    ):
         for i in env.possible_agents:
             if spec.valid_agent_ids is None or i in spec.valid_agent_ids:
                 policies[i].append(spec)

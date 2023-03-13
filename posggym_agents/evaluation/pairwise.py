@@ -111,7 +111,7 @@ def run_pairwise_experiments(
         num_seeds=num_seeds,
         num_episodes=num_episodes,
         time_limit=time_limit,
-        exp_id_init=0,
+        exp_id_init=exp_id_init,
         render_mode=render_mode,
         record_env=record_env,
     )

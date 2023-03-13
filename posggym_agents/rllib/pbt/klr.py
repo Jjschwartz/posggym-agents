@@ -101,7 +101,7 @@ def construct_klrbr_interaction_graph(
     if dist is None:
         dist = get_klr_poisson_prob_fn(k_levels)
 
-    igraph = construct_klr_interaction_graph(agent_ids, k_levels, is_symmetric)
+    igraph = construct_klr_interaction_graph(agent_ids, k_levels, is_symmetric, seed)
 
     for agent_id in agent_ids:
         policy_br_id = get_br_policy_id(agent_id, is_symmetric)

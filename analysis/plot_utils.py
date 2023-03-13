@@ -190,8 +190,6 @@ def get_pairwise_values(
     policy_key: str = "policy_id",
     coplayer_policy_key: str = "coplayer_policy_id",
     coplayer_policies: Optional[List[str]] = None,
-    average_duplicates: bool = True,
-    duplicate_warning: bool = False,
 ):
     """Get values for each policy pairing."""
     policies = plot_df[policy_key].unique().tolist()
@@ -227,8 +225,6 @@ def plot_pairwise_comparison(
     figsize=(20, 20),
     valfmt=None,
     coplayer_policies: Optional[List[str]] = None,
-    average_duplicates: bool = True,
-    duplicate_warning: bool = False,
 ):
     """Plot results for each policy pairings.
 
@@ -237,20 +233,7 @@ def plot_pairwise_comparison(
     If `y_err_key` is provided then an additional policy X policy grid-plot is
     produced displaying the err values.
 
-    It is possible that the there are multiple pairings of the same
-    policy matchup.
-    E.g. (agent 0 pi_0 vs agent 1 pi_1) and (agent 0 pi_1 vs agent 1 pi_0).
-    In some cases we can just take the average of the two (e.g. when looking
-    at times or returns). In such cases use `average_duplicates=True`.
-    For cases where we can't take the average (e.g. for getting exp_id), set
-    `average_duplicates=False`, in which case the first entry will be used.
     """
-    if duplicate_warning:
-        if average_duplicates:
-            print("Averaging duplicates. FYI")
-        else:
-            print("Not averaging duplicates. FYI.")
-
     if valfmt is None:
         valfmt = "{x:.2f}"
 
@@ -265,8 +248,6 @@ def plot_pairwise_comparison(
         policy_key=policy_key,
         coplayer_policy_key=coplayer_policy_key,
         coplayer_policies=coplayer_policies,
-        average_duplicates=average_duplicates,
-        duplicate_warning=duplicate_warning,
     )
 
     plot_pairwise_heatmap(
@@ -285,8 +266,6 @@ def plot_pairwise_comparison(
             policy_key=policy_key,
             coplayer_policy_key=coplayer_policy_key,
             coplayer_policies=coplayer_policies,
-            average_duplicates=average_duplicates,
-            duplicate_warning=duplicate_warning,
         )
 
         plot_pairwise_heatmap(
@@ -310,8 +289,6 @@ def plot_pairwise_population_comparison(
     vrange=None,
     figsize=(20, 20),
     valfmt=None,
-    average_duplicates: bool = True,
-    duplicate_warning: bool = False,
 ):
     """Plot results for each policy-seed pairings.
 
@@ -320,20 +297,7 @@ def plot_pairwise_population_comparison(
     Outer-grid: pop X pop
     Inner-grid: policy X policy
 
-    It is possible that the there are multiple pairings of the same
-    (policy, pop) matchup.
-    E.g. (agent 0 pi_0 vs agent 1 pi_1) and (agent 0 pi_1 vs agent 1 pi_0).
-    In some cases we can just take the average of the two (e.g. when looking
-    at times or returns). In such cases use `average_duplicates=True`.
-    For cases where we can't take the average (e.g. for getting exp_id), set
-    `average_duplicates=False`, in which case the first entry will be used.
     """
-    if duplicate_warning:
-        if average_duplicates:
-            print("Averaging duplicates. FYI")
-        else:
-            print("Not averaging duplicates. FYI.")
-
     pop_ids = plot_df[pop_key].unique().tolist()
     pop_ids.sort()
     co_pop_ids = plot_df[coplayer_pop_key].unique().tolist()

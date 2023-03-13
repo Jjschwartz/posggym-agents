@@ -26,8 +26,8 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-	"posggym >=0.2.0",
-	"numpy <1.24", # prevents annoying depracation warning
+	"posggym >=0.3.1",
+	"numpy >1.21",
 	"pandas >=1.0",
 	"prettytable >=3.6.0",
     "typing-extensions >=4.3.0",
@@ -69,7 +69,7 @@ posggym_agents = [
 # Linters and Test tools #######################################################
 [tool.ruff]
 src = ["posggym_agents", "tests"]
-extend-select = ["C4", "SIM", "TCH", "ARG"]
+extend-select = ["C4", "SIM", "TCH"]
 show-fixes = true
 # Same as Black.
 line-length = 88

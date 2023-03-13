@@ -31,7 +31,7 @@ DEFAULT_ENV = "MultiAccessBroadcastChannel-v0"
     all_testing_policy_specs,
     ids=[policy.id for policy in all_testing_policy_specs],
 )
-def test_policy(spec: PolicySpec, env_id_prefix: str):
+def test_policy(spec: PolicySpec):
     """Run a policy in environment and checks basic functionality."""
     # Ignore warnings for env creation
     with warnings.catch_warnings(record=False):
