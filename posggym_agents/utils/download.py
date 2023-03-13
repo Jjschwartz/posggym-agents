@@ -82,14 +82,14 @@ def download_from_repo(file_path: str, rewrite_existing: bool = False):
         return
 
     path = pathlib.Path(file_path)
-    if "posggym-agents" not in path.parts:
+    if "posggym_agents" not in path.parts:
         raise error.InvalidFile(
-            f"Invalid posggym-agents file path '{file_path}'. Path must contain the "
-            "`posggym-agents` repo directory."
+            f"Invalid posggym_agents file path '{file_path}'. Path must contain the "
+            "`posggym_agents` directory."
         )
 
-    base_repo_dir_index = path.parts.index("posggym-agents")
-    file_repo_url = BASE_REPO_URL + "/".join(path.parts[base_repo_dir_index + 1 :])
+    base_repo_dir_index = path.parts.index("posggym_agents")
+    file_repo_url = BASE_REPO_URL + "/".join(path.parts[base_repo_dir_index:])
 
     logger.info(f"Downloading file from posggym-agents repository: {file_repo_url}.")
 
