@@ -69,7 +69,7 @@ posggym_agents = [
 # Linters and Test tools #######################################################
 [tool.ruff]
 src = ["posggym_agents", "tests"]
-extend-select = ["C4", "SIM", "TCH"]
+extend-select = ["C4", "SIM", "TCH", "ARG"]
 show-fixes = true
 # Same as Black.
 line-length = 88
