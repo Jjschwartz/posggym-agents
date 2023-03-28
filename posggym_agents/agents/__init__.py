@@ -14,6 +14,7 @@ from posggym_agents.agents import (
     pursuitevasion,
     pursuitevasion_8x8_v0,
     pursuitevasion_16x16_v0,
+    droneteamcapture,
 )
 from posggym_agents.agents.random_policies import (
     DiscreteFixedDistributionPolicy,
@@ -91,4 +92,10 @@ for policy_spec in pursuitevasion_8x8_v0.POLICY_SPECS.values():
     register_spec(policy_spec)
 
 for policy_spec in pursuitevasion_16x16_v0.POLICY_SPECS.values():
+    register_spec(policy_spec)
+
+# Drone Team Capture
+# ---------------
+# Generic Actions
+for policy_spec in droneteamcapture.POLICY_SPECS:
     register_spec(policy_spec)
