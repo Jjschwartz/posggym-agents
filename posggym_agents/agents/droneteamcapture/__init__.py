@@ -7,7 +7,7 @@ from posggym_agents.agents.droneteamcapture.shortest_path import DroneTeamHeuris
 
 POLICY_SPECS = [
     PolicySpec(
-        policy_name="DroneDPP",
+        policy_name="DroneHeuristic",
         entry_point=DroneTeamHeuristic,
         version=0,
         env_id="DroneTeamCapture-v0",
