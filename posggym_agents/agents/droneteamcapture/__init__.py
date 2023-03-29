@@ -2,7 +2,7 @@
 from posggym.envs.registration import registry
 from posggym_agents.agents.registration import PolicySpec
 
-from posggym_agents.agents.droneteamcapture.shortest_path import DroneTeamHeuristic
+from posggym_agents.agents.droneteamcapture.DTCHeuristic import DroneTeamHeuristic
 
 
 POLICY_SPECS = [

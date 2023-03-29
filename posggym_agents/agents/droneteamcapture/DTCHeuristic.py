@@ -42,7 +42,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
     """
 
     def __init__(
-        self, model: DTCModel, agent_id: AgentID, policy_id: PolicyID, type: str
+        self, model: DTCModel, agent_id: AgentID, policy_id: PolicyID, type: str = "dpp"
     ):
         super().__init__(model, agent_id, policy_id)
         try:
@@ -438,7 +438,8 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
             )
 
     def step(self, obs: DTCObs | None) -> DTCAction:
-        raise AssertionError("This requires more then just the regular obs")
+        return np.array([0, 0])
+        # raise AssertionError("This requires more then just the regular obs")
 
     def get_initial_state(self) -> PolicyState:
         state = super().get_initial_state()
