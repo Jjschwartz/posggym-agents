@@ -48,7 +48,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         #     set(self._grid.evader_start_coords + self._grid.all_goal_coords)
         # )
         # self._dists = self._grid.get_all_shortest_paths(evader_end_coords)
-        self.omega_max = 10
+        self.omega_max = math.pi / 10
         self.cap_rad = 25
         self.vel_pur = 10
         self.vel_tar = 10
@@ -229,7 +229,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         for i in range(n_pursuers):
             Rep = self.repulsion(Pursuer, i)
             Align = self.alignment(Pursuer, Pursuer_prev)
-            Atrac = self.atraction(Pursuer[i].pos(), target.pos())
+            Atrac = self.attraction(Pursuer[i].pos(), target.pos())
 
             Vx_i = Rep[0] + Align[0] + Atrac[0]
             Vy_i = Rep[1] + Align[1] + Atrac[1]
@@ -278,7 +278,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
 
         return [dx, dy]
 
-    def atraction(self, Pursuer_i, target):
+    def attraction(self, Pursuer_i, target):
         r_iT = np.array(target[:2]) - np.array(Pursuer_i[:2])
 
         dx, dy = self.normalise(r_iT[0], r_iT[1])
@@ -313,7 +313,8 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
     ) -> Tuple[float, float]:
         arena = self.arena(pursuer_coord, idx)
         coll = [0, 0]
-        chase = self.atraction2(
+
+        chase = self.attraction2(
             pursuer_coord[idx], pursuer_prev_coords[idx], target, target_prev
         )
         inter = self.alignment2(pursuer_coord, pursuer_prev_coords, idx)
@@ -350,7 +351,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         for i in range(n_pursuers):
             arena = self.arena(Pursuer, i)
             coll = [0, 0]  # self.repulsion2(Pursuer, i)
-            chase = self.atraction2(Pursuer[i], Pursuer_prev[i], target, target_prev)
+            chase = self.attraction2(Pursuer[i], Pursuer_prev[i], target, target_prev)
             inter = self.alignment2(Pursuer, Pursuer_prev, i)
 
             Vx_i = arena[0] + coll[0] + chase[0] + inter[0]
@@ -368,7 +369,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         rep = self.repulsion(Pursuer, i)
         return [rep[0], rep[1]]
 
-    def atraction2(self, Pursuer_i, Pursuer_i_prev, target, target_prev):
+    def attraction2(self, Pursuer_i, Pursuer_i_prev, target, target_prev):
         # Friction term
         dist = self.euclidean_dist(target, Pursuer_i)
         vel_p = (np.array(Pursuer_i) - np.array(Pursuer_i_prev))[:2]
@@ -377,7 +378,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
 
         # Atraction term
         target_pred = self.prediction(Pursuer_i, target, vel_t)
-        atrac = self.atraction(Pursuer_i, target_pred)
+        atrac = self.attraction(Pursuer_i, target_pred)
 
         chase = atrac + 1.5 * visc
         chase = self.normalise(chase[0], chase[1])
