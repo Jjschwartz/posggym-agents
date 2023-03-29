@@ -30,6 +30,7 @@ class Algs(Enum):
     predator1 = 0
     predator2 = 1
     dpp = 2
+    mixte = 3
 
 
 class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
@@ -127,8 +128,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
 
     def delta(self, Pi: Position, Pj: Position, target: Position) -> float:
         sense = 0
-        alpha, Los_angle, dist, T_p, T_p1 = self.engagmment(Pi, target)
-        # Pi.engagement2(target)
+        _, Los_angle, _, _, _ = self.engagmment(Pi, target)
 
         R = np.array(
             [
@@ -174,45 +174,41 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
 
         return omega
 
-    def Mixte_pursuit(self, Pursuer: Tuple[Position], target: Position):
-        omega = []
+    def Mixte_pursuit_single(
+        self, Pursuer: Tuple[Position], target: Position, idx: int
+    ) -> float:
         n_pursuers = len(Pursuer)
         offset = math.pi / 12
-        # if n_pursuers ==1: offset=0
-        # else: offset = math.pi / (3*n_pursuers)
 
-        r = 250  # to perceive others
+        r = 250.0  # to perceive others
         dist_min = r
-        for i in range(n_pursuers):
-            sense = 0.0
-            for j in range(n_pursuers):
-                if i != j:
-                    sense += self.delta(Pursuer[i], Pursuer[j], target)
-                    dist_ij = np.linalg.norm(Pursuer[i].pos() - Pursuer[j].pos())
-                    if dist_ij < dist_min:
-                        dist_min = dist_ij
+        sense = 0.0
+        for j in range(n_pursuers):
+            if idx != j:
+                sense += self.delta(Pursuer[idx], Pursuer[j], target)
+                dist_ij = self.euclidean_dist(Pursuer[idx], Pursuer[j])
+                if dist_ij < dist_min:
+                    dist_min = dist_ij
 
-            dist_iT = np.linalg.norm(Pursuer[i].pos() - target.pos())
-            r_min = self.sat(dist_iT, 0, r)
-            K = (r_min - dist_min) / r_min
-            K = self.sat(K, 0.1, 10)
+        dist_iT = self.euclidean_dist(Pursuer[idx], target)
+        r_min = self.sat(dist_iT, 0, r)
+        K = (r_min - dist_min) / r_min
+        K = self.sat(K, 0.1, 10)
 
-            alphaiT, ang_r_t, dist = Pursuer[i].engagement(target)
-            err_alpha = alphaiT - sense * offset
-            err_alpha = self.sat(err_alpha, -math.pi / 2, math.pi / 2)
-            DPP = K**2 * math.tan(err_alpha)
+        alphaiT, ang_r_t, _ = self.engagmment(Pursuer[idx], target)
+        err_alpha = alphaiT - sense * offset
+        err_alpha = self.sat(err_alpha, -math.pi / 2, math.pi / 2)
+        DPP = K**2 * math.tan(err_alpha)
 
-            PN = 10 * ang_r_t
+        PN = 10 * ang_r_t
 
-            # print(PN, DPP)
-            PN = self.sat(PN, -0.4, 0.4)
-            DPP = self.sat(DPP, -1, 1)
+        PN = self.sat(PN, -0.4, 0.4)
+        DPP = self.sat(DPP, -1, 1)
 
-            omega_i = PN + DPP
-            omega_i = self.sat(omega_i, -self.omega_max, self.omega_max)
-            omega.append(omega_i)
+        omega_i = PN + DPP
+        omega_i = self.sat(omega_i, -self.omega_max, self.omega_max)
 
-        return omega
+        return omega_i
 
     def Predators_1_nh_single(
         self,
@@ -229,24 +225,6 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         omega_i = self.PP(alpha)
         return omega_i
 
-    def Predators_1_n(
-        self,
-        Pursuer: Tuple[Position, ...],
-        Pursuer_prev: Tuple[Position, ...],
-        target: Position,
-    ):
-        omega = []
-        n_pursuers = len(Pursuer)
-        Vx, Vy = self.Predators_1(Pursuer, Pursuer_prev, target)
-
-        for i in range(n_pursuers):
-            R = self.Rot(Pursuer[i][2])
-            Direction = R.dot([Vx[i], Vy[i]])
-            alpha = math.atan2(Direction[1], Direction[0])
-            omega_i = self.PP(alpha)
-            omega.append(omega_i)
-        return omega
-
     def Predators_1_single(
         self,
         Pursuer: Tuple[Position, ...],
@@ -262,29 +240,6 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         Vy_i = Rep[1] + Align[1] + Atrac[1]
 
         return Vx_i, Vy_i
-
-    def Predators_1(
-        self,
-        Pursuer: Tuple[Position, ...],
-        Pursuer_prev: Tuple[Position, ...],
-        target: Position,
-    ) -> Tuple[List[float], List[float]]:
-        Vx = []
-        Vy = []
-        n_pursuers = len(Pursuer)
-
-        for i in range(n_pursuers):
-            Rep = self.repulsion(Pursuer, i)
-            Align = self.alignment(Pursuer, Pursuer_prev)
-            Atrac = self.attraction(Pursuer[i].pos(), target.pos())
-
-            Vx_i = Rep[0] + Align[0] + Atrac[0]
-            Vy_i = Rep[1] + Align[1] + Atrac[1]
-
-            # omega_i = self.vel2rate(Pursuer[i], [Vx,Vy])
-            Vx.append(Vx_i)
-            Vy.append(Vy_i)
-        return Vx, Vy
 
     def repulsion(self, Pursuer: Tuple[Position, ...], i: int) -> List[float]:
         r = 300
@@ -339,19 +294,6 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         d = self.sat(d, 0.000001, 10000000)
         return dx / d, dy / d
 
-    def Predators_2_n(self, Pursuer, Pursuer_prev, target, target_prev):
-        omega = []
-        n_pursuers = len(Pursuer)
-        Vx, Vy = self.Predators_2(Pursuer, Pursuer_prev, target, target_prev)
-
-        for i in range(n_pursuers):
-            R = self.Rot(Pursuer[i].get_yaw()[0])
-            Direction = R.dot([Vx[i], Vy[i]])
-            alpha = math.atan2(Direction[1], Direction[0])
-            omega_i = self.PP(alpha)
-            omega.append(omega_i)
-        return omega
-
     def Predators_2_single(
         self,
         pursuer_coord: Tuple[Position, ...],
@@ -390,31 +332,6 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         alpha = math.atan2(Direction[1], Direction[0])
         omega = self.PP(alpha)
         return omega
-
-    def Predators_2(
-        self,
-        Pursuer: Tuple[Position, ...],
-        Pursuer_prev: Tuple[Position, ...],
-        target: Tuple[Position, ...],
-        target_prev: Tuple[Position, ...],
-    ) -> Tuple[List[float], List[float]]:
-        Vx = []
-        Vy = []
-        n_pursuers = len(Pursuer)
-
-        for i in range(n_pursuers):
-            arena = self.arena()
-            coll = [0, 0]
-            chase = self.attraction2(Pursuer[i], Pursuer_prev[i], target, target_prev)
-            inter = self.alignment2(Pursuer, Pursuer_prev, i)
-
-            Vx_i = arena[0] + coll[0] + chase[0] + inter[0]
-            Vy_i = arena[1] + coll[1] + chase[1] + inter[1]
-
-            Vx.append(Vx_i)
-            Vy.append(Vy_i)
-
-        return Vx, Vy
 
     def arena(self) -> List[float]:
         return [0.0, 0.0]
@@ -515,7 +432,10 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
             )
         elif self.alg == Algs.dpp:
             return self.dpp_single(idx, state.pursuer_coords, state.target_coords)
-        # print(state)
+        elif self.alg == Algs.mixte:
+            return self.Mixte_pursuit_single(
+                state.pursuer_coords, state.target_coords, idx
+            )
 
     def step(self, obs: DTCObs | None) -> DTCAction:
         raise AssertionError("This requires more then just the regular obs")
