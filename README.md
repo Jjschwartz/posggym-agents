@@ -61,6 +61,7 @@ The project currently has policies implemented for the following POSGGym environ
 - Level Based Foraging
 - Predator Prey
 - Pursuit Evasion
+- DroneTeamCapture
 
 The full list of policies can be obtained using the following code:
 
@@ -74,6 +75,7 @@ pga.pprint_registry()
 ## Authors
 
 **Jonathon Schwartz** - Jonathon.schwartz@anu.edu.au
+**Rhys Newbury** - Rhys.Newbury@anu.edu.au
 
 
 ## License
