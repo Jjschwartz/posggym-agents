@@ -195,7 +195,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         K = (r_min - dist_min) / r_min
         K = self.sat(K, 0.1, 10)
 
-        alphaiT, ang_r_t, _ = self.engagmment(Pursuer[idx], target)
+        alphaiT, ang_r_t, _, _, _ = self.engagmment(Pursuer[idx], target)
         err_alpha = alphaiT - sense * offset
         err_alpha = self.sat(err_alpha, -math.pi / 2, math.pi / 2)
         DPP = K**2 * math.tan(err_alpha)
@@ -234,7 +234,7 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
     ) -> Tuple[float, float]:
         Rep = self.repulsion(Pursuer, idx)
         Align = self.alignment(Pursuer, Pursuer_prev)
-        Atrac = self.attraction(Pursuer[idx].pos(), target.pos())
+        Atrac = self.attraction(Pursuer[idx], target)
 
         Vx_i = Rep[0] + Align[0] + Atrac[0]
         Vy_i = Rep[1] + Align[1] + Atrac[1]
