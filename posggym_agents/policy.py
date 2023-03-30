@@ -34,6 +34,10 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         self.policy_id = policy_id
         self._state = self.get_initial_state()
 
+    @property
+    def is_fully_observable(self):
+        return False
+
     def step(self, obs: ObsType | None) -> ActType:
         """Get the next action from the policy.
 
@@ -187,6 +191,10 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
 
 
 class FullyObservablePolicy(Policy[ActType, StateType]):
+    @property
+    def is_fully_observable(self):
+        return True
+
     @abc.abstractmethod
     def step(self, state_idx: StateType) -> ActType:
         """Get the next action from the policy.

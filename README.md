@@ -52,6 +52,15 @@ The policy ID is made up of four parts:
 
 The `env_id` and `env_args_id` may be omitted depending on the policy. If the policy is environment agnostic (e.g. the `Random-v0` policy works for any environment) then both the `env_id` and `env_args_id` can be omitted. While if the policy is environment specific, but works for all variations of the environment or the environment has only a single variation (it doesn't have any parameters) then the `env_args_id` can be omitted (e.g. `PursuitEvasion-v0/shortestpath-v0`).
 
+There is a second type of policy - a `FullyObservablePolicy`, which requires the state as input to the `step` function, rather than the observation. To check if the policy is fully observable, you can check the `is_fully_observable` property of each policy.
+
+If the policy `is_fully_observable`, you would need to change the step for the policy to the following.
+
+```
+ actions = {i: policies[i].step(env.state) for i in env.agents}
+```
+
+
 
 ## List of Policies
 

@@ -12,7 +12,7 @@ import pytest
 
 import posggym_agents as pga
 from posggym_agents.agents.registration import PolicySpec
-from posggym_agents.policy import Policy, FullyObservablePolicy
+from posggym_agents.policy import Policy
 from posggym_agents.rllib.policy import RllibPolicy
 from tests.agents.utils import (
     all_testing_initialised_policies,
@@ -71,7 +71,7 @@ def test_policy(spec: PolicySpec):
 
 
 def step_policy(env, obs, policy: Policy):
-    if issubclass(type(policy), FullyObservablePolicy):
+    if policy.is_fully_observable:
         return policy.step(env.state)
     else:
         return policy.step(obs)
