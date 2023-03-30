@@ -1,7 +1,7 @@
 """Shortest path policy for PursuitEvasion env."""
 from __future__ import annotations
 
-from typing import Dict, TYPE_CHECKING, Tuple, List
+from typing import Dict, TYPE_CHECKING, Tuple, List, Union
 
 from enum import Enum
 
@@ -27,30 +27,61 @@ if TYPE_CHECKING:
 
 
 class Algs(Enum):
-    predator1 = 0
-    predator2 = 1
-    dpp = 2
-    mixte = 3
+    angelani2012 = 0
+    janosov2017 = 1
+    desouza2022 = 3
+    deviated_pure_pursuit = 4
 
 
 class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
-    """Shortest Path Policy for the Pursuit Evasion environment.
+    """Heuristic Policies for the Pursuit Evasion environment.
 
     This policy sets the preferred action as the one which is on the shortest
     path to the evaders goal and which doesn't leave agent in same position.
 
+    janosov2017_nh and angelani2012_nh are the non-holonomic adaptions of their original
+    work following the protocol described in:
+    C. de Souza, R. Newbury, A. Cosgun, P. Castillo, B. Vidolov and D. Kulić,
+    "Decentralized Multi-Agent Pursuit Using Deep Reinforcement Learning,"
+    in IEEE Robotics and Automation Letters, vol. 6, no. 3, pp. 4552-4559,
+    July 2021, doi: 10.1109/LRA.2021.3068952.
+
+    angelani2012_nh is the policy from this work:
+    Angelani, L. (09 2012). Collective Predation and Escape Strategies.
+    Physical Review Letters, 109. doi:10.1103/PhysRevLett.109.118104
+
+    janosov2017_nh is the policy from this work?:
+    Janosov, M., Virágh, C., Vásárhelyi, G., & Vicsek, T. (2017). Group chasing tactics:
+    how to catch a faster prey. New Journal of Physics, 19(5), 053003.
+    doi:10.1088/1367-2630/aa69e7
+
+    desouza2022_nh is the policy from this work:
+    De Souza, C., Castillo, P., & Vidolov, B. (2022). Local interaction and navigation
+    guidance for hunters drones: A chase behavior approach with real-time tests.
+    Robotica, 40(8), 2697-2715. doi:10.1017/S0263574721001910
+
     """
 
     def __init__(
-        self, model: DTCModel, agent_id: AgentID, policy_id: PolicyID, type: str = "dpp"
+        self,
+        model: DTCModel,
+        agent_id: AgentID,
+        policy_id: PolicyID,
+        alg: Union[str, Algs] = "angelani2012",
     ):
         super().__init__(model, agent_id, policy_id)
-        try:
-            self.alg = Algs[type.lower()]
-        except KeyError:
-            raise AssertionError(
-                f"Invalid Heuristic. Supported Options: {[str(x.name) for x in Algs]}"
-            )
+        if type(alg) is str:
+            try:
+                self.alg = Algs[alg.lower()]
+            except KeyError:
+                raise AssertionError(
+                    (
+                        "Invalid Heuristic. Supported Options:",
+                        f"{[str(x.name) for x in Algs]}",
+                    )
+                )
+        elif type(alg) is Algs:
+            self.alg = alg
 
         self._grid = self.model.grid
 
@@ -174,7 +205,7 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
 
         return omega
 
-    def Mixte_pursuit_single(
+    def desouza2022pursuit_single(
         self, Pursuer: Tuple[Position], target: Position, idx: int
     ) -> float:
         n_pursuers = len(Pursuer)
@@ -210,14 +241,14 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
 
         return omega_i
 
-    def Predators_1_nh_single(
+    def angelani2012_nh_single(
         self,
         Pursuer: Tuple[Position, ...],
         Pursuer_prev: Tuple[Position, ...],
         target: Position,
         idx: int,
     ) -> float:
-        Vx, Vy = self.Predators_1_single(Pursuer, Pursuer_prev, target, idx)
+        Vx, Vy = self.angelani2012_single(Pursuer, Pursuer_prev, target, idx)
 
         R = self.Rot(Pursuer[idx][2])
         Direction = R.dot([Vx, Vy])
@@ -225,7 +256,7 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
         omega_i = self.PP(alpha)
         return omega_i
 
-    def Predators_1_single(
+    def angelani2012_single(
         self,
         Pursuer: Tuple[Position, ...],
         Pursuer_prev: Tuple[Position, ...],
@@ -294,7 +325,7 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
         d = self.sat(d, 0.000001, 10000000)
         return dx / d, dy / d
 
-    def Predators_2_single(
+    def janosov2017_single(
         self,
         pursuer_coord: Tuple[Position, ...],
         pursuer_prev_coords: Tuple[Position, ...],
@@ -315,7 +346,7 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
 
         return Vx_i, Vy_i
 
-    def Predators_2_single_nh(
+    def janosov2017_single_nh(
         self,
         pursuer_coord: Tuple[Position, ...],
         pursuer_prev_coords: Tuple[Position, ...],
@@ -323,7 +354,7 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
         target_prev: Position,
         idx: int,
     ) -> float:
-        vx, vy = self.Predators_2_single(
+        vx, vy = self.janosov2017_single(
             pursuer_coord, pursuer_prev_coords, target, target_prev, idx
         )
 
@@ -417,25 +448,25 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
     def step(self, state: DTCState) -> DTCAction:
         idx = int(self.agent_id)
         angle = 0.0
-        if self.alg == Algs.predator2:
-            angle = self.Predators_2_single_nh(
+        if self.alg == Algs.janosov2017:
+            angle = self.janosov2017_single_nh(
                 state.pursuer_coords,
                 state.prev_pursuer_coords,
                 state.target_coords,
                 state.prev_target_coords,
                 idx,
             )
-        elif self.alg == Algs.predator1:
-            angle = self.Predators_1_nh_single(
+        elif self.alg == Algs.angelani2012:
+            angle = self.angelani2012_nh_single(
                 state.pursuer_coords,
                 state.prev_pursuer_coords,
                 state.target_coords,
                 idx,
             )
-        elif self.alg == Algs.dpp:
+        elif self.alg == Algs.deviated_pure_pursuit:
             angle = self.dpp_single(idx, state.pursuer_coords, state.target_coords)
-        elif self.alg == Algs.mixte:
-            angle = self.Mixte_pursuit_single(
+        elif self.alg == Algs.desouza2022:
+            angle = self.desouza2022pursuit_single(
                 state.pursuer_coords, state.target_coords, idx
             )
         else:
