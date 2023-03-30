@@ -199,12 +199,11 @@ class FullyObservablePolicy(Policy[ActType, StateType]):
     def step(self, state_idx: StateType) -> ActType:
         """Get the next action from the policy.
 
-        This function updates the policy's current internal state and computes the
-        next action.
+        This function computes the next action.
 
         Arguments
         ---------
-        state_idx: The current state and the AgentID to compute the action for
+        state_idx: The current state for which to compute action
 
         Returns
         -------
