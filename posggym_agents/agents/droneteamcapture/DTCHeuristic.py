@@ -39,23 +39,23 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
     This policy sets the preferred action as the one which is on the shortest
     path to the evaders goal and which doesn't leave agent in same position.
 
-    janosov2017_nh and angelani2012_nh are the non-holonomic adaptions of their original
+    janosov2017 and angelani2012 are the non-holonomic adaptions of their original
     work following the protocol described in:
     C. de Souza, R. Newbury, A. Cosgun, P. Castillo, B. Vidolov and D. Kulić,
     "Decentralized Multi-Agent Pursuit Using Deep Reinforcement Learning,"
     in IEEE Robotics and Automation Letters, vol. 6, no. 3, pp. 4552-4559,
     July 2021, doi: 10.1109/LRA.2021.3068952.
 
-    angelani2012_nh is the policy from this work:
+    angelani2012 is the policy from this work:
     Angelani, L. (09 2012). Collective Predation and Escape Strategies.
     Physical Review Letters, 109. doi:10.1103/PhysRevLett.109.118104
 
-    janosov2017_nh is the policy from this work?:
+    janosov2017 is the policy from this work?:
     Janosov, M., Virágh, C., Vásárhelyi, G., & Vicsek, T. (2017). Group chasing tactics:
     how to catch a faster prey. New Journal of Physics, 19(5), 053003.
     doi:10.1088/1367-2630/aa69e7
 
-    desouza2022_nh is the policy from this work:
+    desouza2022 is the policy from this work:
     De Souza, C., Castillo, P., & Vidolov, B. (2022). Local interaction and navigation
     guidance for hunters drones: A chase behavior approach with real-time tests.
     Robotica, 40(8), 2697-2715. doi:10.1017/S0263574721001910
