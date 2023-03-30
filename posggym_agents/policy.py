@@ -196,7 +196,7 @@ class FullyObservablePolicy(Policy[ActType, StateType]):
         return True
 
     @abc.abstractmethod
-    def step(self, state_idx: StateType) -> ActType:
+    def step(self, state: StateType) -> ActType:
         """Get the next action from the policy.
 
         This function computes the next action.
