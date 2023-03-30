@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 class Algs(Enum):
     angelani2012 = 0
     janosov2017 = 1
-    desouza2022 = 3
     deviated_pure_pursuit = 4
 
 
@@ -52,12 +51,6 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
     Janosov, M., Virágh, C., Vásárhelyi, G., & Vicsek, T. (2017). Group chasing tactics:
     how to catch a faster prey. New Journal of Physics, 19(5), 053003.
     doi:10.1088/1367-2630/aa69e7
-
-    desouza2022 is the policy from this work:
-    De Souza, C., Castillo, P., & Vidolov, B. (2022). Local interaction and navigation
-    guidance for hunters drones: A chase behavior approach with real-time tests.
-    Robotica, 40(8), 2697-2715. doi:10.1017/S0263574721001910
-
     """
 
     def __init__(
@@ -202,42 +195,6 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
         omega = self.sat(omega, -self.omega_max, self.omega_max)
 
         return omega
-
-    def desouza2022pursuit_single(
-        self, Pursuer: Tuple[Position], target: Position, idx: int
-    ) -> float:
-        n_pursuers = len(Pursuer)
-        offset = math.pi / 12
-
-        r = 250.0  # to perceive others
-        dist_min = r
-        sense = 0.0
-        for j in range(n_pursuers):
-            if idx != j:
-                sense += self.delta(Pursuer[idx], Pursuer[j], target)
-                dist_ij = self.euclidean_dist(Pursuer[idx], Pursuer[j])
-                if dist_ij < dist_min:
-                    dist_min = dist_ij
-
-        dist_iT = self.euclidean_dist(Pursuer[idx], target)
-        r_min = self.sat(dist_iT, 0, r)
-        K = (r_min - dist_min) / r_min
-        K = self.sat(K, 0.1, 10)
-
-        alphaiT, ang_r_t, _, _, _ = self.engagmment(Pursuer[idx], target)
-        err_alpha = alphaiT - sense * offset
-        err_alpha = self.sat(err_alpha, -math.pi / 2, math.pi / 2)
-        DPP = K**2 * math.tan(err_alpha)
-
-        PN = 10 * ang_r_t
-
-        PN = self.sat(PN, -0.4, 0.4)
-        DPP = self.sat(DPP, -1, 1)
-
-        omega_i = PN + DPP
-        omega_i = self.sat(omega_i, -self.omega_max, self.omega_max)
-
-        return omega_i
 
     def angelani2012_nh_single(
         self,
@@ -461,10 +418,6 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
             )
         elif self.alg == Algs.deviated_pure_pursuit:
             angle = self.dpp_single(idx, state.pursuer_coords, state.target_coords)
-        elif self.alg == Algs.desouza2022:
-            angle = self.desouza2022pursuit_single(
-                state.pursuer_coords, state.target_coords, idx
-            )
         else:
             return NotImplementedError("{self.alg} is not implemented")
 
