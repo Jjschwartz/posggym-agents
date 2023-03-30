@@ -7,7 +7,6 @@ from enum import Enum
 
 # from posggym.envs.gr
 from posggym.envs.continuous.drone_team_capture import (
-    DTCObs,
     DTCAction,
     DTCState,
     DTCModel,
@@ -23,7 +22,6 @@ from posggym_agents.policy import FullyObservablePolicy, PolicyID, PolicyState
 if TYPE_CHECKING:
     from posggym.envs.continuous.core import Position
     from posggym.model import AgentID
-    from posggym.utils.history import AgentHistory
 
 
 class Algs(Enum):
@@ -419,8 +417,6 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
 
         for j in range(len(Pursuer)):
             if j != i:
-                # dx = dx + (Pursuer[i].pos()[0] - Pursuer_prev[i].pos()[0])
-                # dy = dy + (Pursuer[i].pos()[1] - Pursuer_prev[i].pos()[1])
                 d_ij = (np.array(Pursuer[i]) - np.array(Pursuer[j]))[:2]
                 d = np.linalg.norm(d_ij)
 
@@ -476,29 +472,18 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
 
     def get_initial_state(self) -> PolicyState:
         state = super().get_initial_state()
+        state["last_state"] = None
         return state
 
     def get_next_state(
         self,
-        obs: DTCObs,
+        obs: DTCState,
         state: PolicyState,
     ) -> PolicyState:
-        raise NotImplementedError(
-            f"`get_value()` not implemented by {self.__class__.__name__} policy"
-        )
-
-    def get_state_from_history(self, history: AgentHistory) -> PolicyState:
-        raise NotImplementedError(
-            (
-                "`get_state_from_history()` not implemented",
-                f"by {self.__class__.__name__} policy",
-            )
-        )
+        return {"last_state": obs}
 
     def sample_action(self, state: PolicyState) -> DTCAction:
-        raise NotImplementedError(
-            f"`sample_action()` not implemented by {self.__class__.__name__} policy"
-        )
+        return self.step(state["last_state"])
 
     def get_pi(self, state: PolicyState) -> Dict[DTCAction, float]:
         raise NotImplementedError(
