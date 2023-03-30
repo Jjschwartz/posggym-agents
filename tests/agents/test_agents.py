@@ -59,7 +59,7 @@ def test_policy(spec: PolicySpec):
         joint_action = {}
         for i in env.agents:
             if i == test_agent_id:
-                a = test_policy.step(obs[i])
+                a = step_policy(env, obs[i], test_policy)
             else:
                 a = env.action_spaces[i].sample()
             joint_action[i] = a
@@ -68,6 +68,13 @@ def test_policy(spec: PolicySpec):
 
     env.close()
     test_policy.close()
+
+
+def step_policy(env, obs, policy: Policy):
+    if policy.is_fully_observable:
+        return policy.step(env.state)
+    else:
+        return policy.step(obs)
 
 
 @pytest.mark.parametrize(
@@ -123,8 +130,8 @@ def test_policy_determinism_rollout(spec: PolicySpec):
     assert_equals(policy_1.get_state(), policy_2.get_state())
 
     for time_step in range(NUM_STEPS):
-        action_1 = policy_1.step(obs[agent_id])
-        action_2 = policy_2.step(obs[agent_id])
+        action_1 = step_policy(env_1, obs[agent_id], policy_1)
+        action_2 = step_policy(env_2, obs[agent_id], policy_2)
 
         assert_equals(action_1, action_2)
         assert env_1.action_spaces[agent_id].contains(action_1)

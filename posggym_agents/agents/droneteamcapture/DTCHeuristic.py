@@ -17,7 +17,7 @@ import math
 import numpy as np
 
 
-from posggym_agents.policy import Policy, PolicyID, PolicyState
+from posggym_agents.policy import FullyObservablePolicy, PolicyID, PolicyState
 
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class Algs(Enum):
     mixte = 3
 
 
-class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
+class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
     """Shortest Path Policy for the Pursuit Evasion environment.
 
     This policy sets the preferred action as the one which is on the shortest
@@ -414,9 +414,11 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
 
         return [dx, dy]
 
-    def _step(self, state: DTCState | None, idx: int) -> DTCAction:
+    def step(self, state: DTCState) -> DTCAction:
+        idx = int(self.agent_id)
+        angle = 0.0
         if self.alg == Algs.predator2:
-            return self.Predators_2_single_nh(
+            angle = self.Predators_2_single_nh(
                 state.pursuer_coords,
                 state.prev_pursuer_coords,
                 state.target_coords,
@@ -424,22 +426,22 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
                 idx,
             )
         elif self.alg == Algs.predator1:
-            return self.Predators_1_nh_single(
+            angle = self.Predators_1_nh_single(
                 state.pursuer_coords,
                 state.prev_pursuer_coords,
                 state.target_coords,
                 idx,
             )
         elif self.alg == Algs.dpp:
-            return self.dpp_single(idx, state.pursuer_coords, state.target_coords)
+            angle = self.dpp_single(idx, state.pursuer_coords, state.target_coords)
         elif self.alg == Algs.mixte:
-            return self.Mixte_pursuit_single(
+            angle = self.Mixte_pursuit_single(
                 state.pursuer_coords, state.target_coords, idx
             )
+        else:
+            return NotImplementedError("{self.alg} is not implemented")
 
-    def step(self, obs: DTCObs | None) -> DTCAction:
-        return np.array([0, 0])
-        # raise AssertionError("This requires more then just the regular obs")
+        return np.array([angle], dtype=np.float32)
 
     def get_initial_state(self) -> PolicyState:
         state = super().get_initial_state()
@@ -450,18 +452,29 @@ class DroneTeamHeuristic(Policy[DTCAction, DTCObs]):
         obs: DTCObs,
         state: PolicyState,
     ) -> PolicyState:
-        return {}
+        raise NotImplementedError(
+            f"`get_value()` not implemented by {self.__class__.__name__} policy"
+        )
 
     def get_state_from_history(self, history: AgentHistory) -> PolicyState:
-        return {}
+        raise NotImplementedError(
+            (
+                "`get_state_from_history()` not implemented",
+                f"by {self.__class__.__name__} policy",
+            )
+        )
 
     def sample_action(self, state: PolicyState) -> DTCAction:
-        return state["action"]
+        raise NotImplementedError(
+            f"`sample_action()` not implemented by {self.__class__.__name__} policy"
+        )
 
     def get_pi(self, state: PolicyState) -> Dict[DTCAction, float]:
-        return {}
+        raise NotImplementedError(
+            f"`get_pi()` not implemented by {self.__class__.__name__} policy"
+        )
 
     def get_value(self, state: PolicyState) -> float:
         raise NotImplementedError(
-            f"`get_value()` no implemented by {self.__class__.__name__} policy"
+            f"`get_value()` not implemented by {self.__class__.__name__} policy"
         )
