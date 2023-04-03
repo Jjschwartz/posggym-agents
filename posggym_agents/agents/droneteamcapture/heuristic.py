@@ -47,10 +47,15 @@ class DroneTeamHeuristic(FullyObservablePolicy[DTCAction, DTCState]):
     Angelani, L. (09 2012). Collective Predation and Escape Strategies.
     Physical Review Letters, 109. doi:10.1103/PhysRevLett.109.118104
 
-    janosov2017 is the policy from this work?:
+    janosov2017 is the policy from this work:
     Janosov, M., Virágh, C., Vásárhelyi, G., & Vicsek, T. (2017). Group chasing tactics:
     how to catch a faster prey. New Journal of Physics, 19(5), 053003.
     doi:10.1088/1367-2630/aa69e7
+
+    deviated_pure_pursuit is from this work:
+    Souza, C., Castillo, P., & Vidolov, B. (2022). Local interaction and navigation
+    guidance for hunters drones: a chase behavior approach with real-time tests.
+    Robotica, 40(8), 2697–2715.
     """
 
     def __init__(
