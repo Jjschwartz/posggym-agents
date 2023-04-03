@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 ActType = TypeVar("ActType")
 ObsType = TypeVar("ObsType")
+StateType = TypeVar("StateType")
 
 # Convenient type definitions
 PolicyID = str
@@ -32,6 +33,10 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         self.agent_id = agent_id
         self.policy_id = policy_id
         self._state = self.get_initial_state()
+
+    @property
+    def is_fully_observable(self):
+        return False
 
     def step(self, obs: ObsType | None) -> ActType:
         """Get the next action from the policy.
@@ -183,3 +188,24 @@ class Policy(abc.ABC, Generic[ActType, ObsType]):
         Should be overridden in subclasses as necessary.
         """
         pass
+
+
+class FullyObservablePolicy(Policy[ActType, StateType]):
+    @property
+    def is_fully_observable(self):
+        return True
+
+    @abc.abstractmethod
+    def step(self, state: StateType) -> ActType:
+        """Get the next action from the policy.
+
+        This function computes the next action.
+
+        Arguments
+        ---------
+        state_idx: The current state for which to compute action
+
+        Returns
+        -------
+        action: the next action
+        """
