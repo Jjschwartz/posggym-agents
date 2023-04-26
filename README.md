@@ -1,3 +1,7 @@
+## Important Notice
+
+### POSGGym-Agents has been merged into [POSGGym](https://github.com/RDLLab/posggym), all future developments will happen there.
+
 # POSGGym Agents
 
 POSGGym-Agents is a collection of agent policies and policy training code for [POSGGym](https://github.com/RDLLab/posggym) environments. The goal of the library is to provide a diverse set of policies and a simple API that makes it easy to import and use policies in your own research.
@@ -6,7 +10,13 @@ POSGGym-Agents is a collection of agent policies and policy training code for [P
 
 This project depends on the [PyTorch](https://pytorch.org/) and [Ray RLlib](https://docs.ray.io/en/latest/rllib/index.html) libraries. Specifically pytorch version `>= 1.11` and rllib version `>=2.3`. We recommend install `torch` before installing the POSGGym-Agents package to ensure you get the version of `torch` that works with your CPU/GPU.
 
-You can install the latest version of POSGGym-Agents using `pip install posggym-agents`. Note that this will install the base library without all the agent policy files, which will be downloaded from the posggym-agents github repo upon request (i.e. when `posggym_agents.make` is called), the policy file is then stored locally with the posggym-agents code for reuse.
+You can install this version of POSGGym-Agents by cloning the repo and then installing with `pip`:
+
+```
+git clone git@github.com:Jjschwartz/posggym-agents.git
+cd posggym-agents
+pip install -e .
+```
 
 ## API usage
 
